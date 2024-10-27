@@ -4,7 +4,7 @@ REPO_DIR=$(shell pwd)
 SRC_DIR=.
 BUILD_DIR=build
 
-BIN_NAME=pico2_quad_detection.uf2
+BIN_NAME=pico2_jjy_receiver.uf2
 BIN=$(BUILD_DIR)/$(BIN_NAME)
 
 CORE_DIR=../../core

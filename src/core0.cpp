@@ -8,7 +8,7 @@
 #include "pico/multicore.h"
 
 #include "dma_adc.hpp"
-#include "jjy/detector.hpp"
+#include "jjy/jjy.hpp"
 
 #include "core1.hpp"
 

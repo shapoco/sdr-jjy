@@ -1,0 +1,122 @@
+#include <stdio.h>
+#include "stdint.h"
+#include "math.h"
+#include "hardware/clocks.h"
+#include "hardware/gpio.h"
+#include "hardware/pwm.h"
+#include "pico/stdlib.h"
+#include "pico/multicore.h"
+
+#include "dma_adc.hpp"
+#include "jjy/detector.hpp"
+
+#include "core1.hpp"
+
+#define ENABLE_STDOUT (1)
+
+static constexpr uint32_t SYS_CLK_FREQ = 120 * MHZ;
+static constexpr uint32_t RF_CLK_FREQ = 60 * KHZ;
+
+static constexpr int PIN_ADC_IN = 26;
+static constexpr int PIN_LED_OUT = 25;
+static constexpr int PIN_SPEAKER_OUT = 28;
+static constexpr int PIN_LAMP_OUT = 18;
+
+static constexpr uint32_t DET_FREQ = RF_CLK_FREQ * jjy::DET_RESO;
+
+using MyDmaAdc = DmaAdc<PIN_ADC_IN, DET_FREQ, jjy::DET_PERIOD>;
+
+static constexpr uint32_t SPEAKER_FREQ = 440;
+static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
+static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
+
+MyDmaAdc dma_adc;
+jjy::Detector detector;
+
+uint8_t glb_jjy_curr_signal = 0;
+
+
+int main() {
+    set_sys_clock_khz(SYS_CLK_FREQ / KHZ, true);
+    sleep_ms(100);
+
+#if ENABLE_STDOUT
+    stdio_init_all();
+    sleep_ms(100);
+    printf("Start.\n");
+#endif
+
+    // Setup LED pin
+    gpio_init(PIN_LED_OUT);
+    gpio_set_dir(PIN_LED_OUT, GPIO_OUT);
+
+    // Setup Lamp pin
+    gpio_init(PIN_LAMP_OUT);
+    gpio_set_dir(PIN_LAMP_OUT, GPIO_OUT);
+
+    // Setup speaker out
+    {
+        gpio_init(PIN_SPEAKER_OUT);
+        gpio_set_dir(PIN_SPEAKER_OUT, GPIO_OUT);
+        gpio_set_function(PIN_SPEAKER_OUT, GPIO_FUNC_PWM);
+
+        const float pwm_clkdiv = ((float)SYS_CLK_FREQ / SPEAKER_FREQ) / SPEAKER_PWM_PERIOD;
+        pwm_config pwm_cfg = pwm_get_default_config();
+        pwm_config_set_clkdiv(&pwm_cfg, pwm_clkdiv);
+        pwm_config_set_wrap(&pwm_cfg, SPEAKER_PWM_PERIOD - 1);
+        pwm_init(pwm_gpio_to_slice_num(PIN_SPEAKER_OUT), &pwm_cfg, true);
+        pwm_set_gpio_level(PIN_SPEAKER_OUT, 0);
+    }
+
+    adc_init();
+    dma_adc.init();
+    sleep_ms(100);
+
+    core1_init();
+    multicore_launch_core1(core1_main);
+
+    dma_adc.run();
+
+    uint64_t t_last_us = to_us_since_boot(get_absolute_time());
+    uint32_t t_dma_us = 0, t_calc_us = 0;
+
+    detector.init();
+
+    while(true) {
+
+        uint64_t t_now_us = to_us_since_boot(get_absolute_time());
+        t_calc_us += t_now_us - t_last_us;
+        t_last_us = t_now_us;
+
+        const uint16_t* dma_buff = dma_adc.read();
+
+        t_now_us = to_us_since_boot(get_absolute_time());
+        t_dma_us += t_now_us - t_last_us;
+        t_last_us = t_now_us;
+
+        detector.detect(dma_buff);
+        const auto& status = detector.read_status();
+
+        if (status.agc_updated) {
+#if ENABLE_STDOUT
+            float core0usage = (float)(100 * t_calc_us) / (t_calc_us + t_dma_us);
+            printf("AdcLv:%3d, AGC:%6.2f, Base/Peak:%4d/%4d, Qty:%4.2f, Core0Usage:%6.2f%%\n",
+                (int)status.adc_level, status.agc_amp(), (int)status.rcv_level_base, (int)status.rcv_level_peak, status.quarity(), core0usage);
+#endif
+
+            t_calc_us = 0;
+            t_dma_us = 0;
+        }
+
+        uint32_t t_now_ms = t_now_us / 1000;
+
+        // Output
+        glb_jjy_curr_signal = status.stabled_signal;
+        gpio_put(PIN_LED_OUT, status.raw_signal);
+        gpio_put(PIN_LAMP_OUT, !status.stabled_signal);
+        pwm_set_gpio_level(PIN_SPEAKER_OUT, status.stabled_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
+
+    }
+
+    return 0;
+}

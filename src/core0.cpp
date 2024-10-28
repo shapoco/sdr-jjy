@@ -6,7 +6,9 @@
 #include "hardware/pwm.h"
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
+#include "pico/sync.h"
 
+#include "atomic.hpp"
 #include "dma_adc.hpp"
 #include "jjy/jjy.hpp"
 
@@ -33,8 +35,7 @@ static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 MyDmaAdc dma_adc;
 jjy::Detector detector;
 
-volatile uint8_t glb_jjy_curr_signal = 0;
-volatile uint8_t glb_jjy_qty_percent = 0;
+atomic<jjy::detector_status_t> glb_det_status;
 
 int main() {
     set_sys_clock_khz(SYS_CLK_FREQ / KHZ, true);
@@ -42,7 +43,7 @@ int main() {
 
 #if ENABLE_STDOUT
     stdio_init_all();
-    sleep_ms(100);
+    sleep_ms(500);
     printf("Start.\n");
 #endif
 
@@ -79,6 +80,7 @@ int main() {
 
     uint64_t t_last_us = to_us_since_boot(get_absolute_time());
     uint32_t t_dma_us = 0, t_calc_us = 0;
+    uint32_t t_next_print_ms = t_last_us / 1000;
 
     detector.init();
 
@@ -93,29 +95,31 @@ int main() {
         t_now_us = to_us_since_boot(get_absolute_time());
         t_dma_us += t_now_us - t_last_us;
         t_last_us = t_now_us;
+        
+        uint32_t t_now_ms = t_now_us / 1000;
 
         detector.detect(dma_buff);
-        const auto& status = detector.get_status();
+        const jjy::detector_status_t &status = detector.get_status();
+        glb_det_status.store(status);
 
-        if (status.agc_updated) {
+        // Output
+        gpio_put(PIN_LED_OUT, status.raw_signal);
+        gpio_put(PIN_LAMP_OUT, !status.stable_signal);
+        pwm_set_gpio_level(PIN_SPEAKER_OUT, status.stable_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
+
+        if (t_now_ms >= t_next_print_ms) {
+            t_next_print_ms += 1000;
+
 #if ENABLE_STDOUT
             float core0usage = (float)(100 * t_calc_us) / (t_calc_us + t_dma_us);
             printf("AdcLv:%3d, AGC:%6.2f, Base/Peak:%4d/%4d, Qty:%4.2f, Core0Usage:%6.2f%%\n",
-                (int)status.adc_level, status.agc_amp(), (int)status.rcv_level_base, (int)status.rcv_level_peak, status.quarity(), core0usage);
+                (int)status.adc_level, status.agc_amp(), (int)status.det_signal_base, (int)status.det_signal_peak, status.quarity(), core0usage);
 #endif
 
             t_calc_us = 0;
             t_dma_us = 0;
         }
 
-        uint32_t t_now_ms = t_now_us / 1000;
-
-        // Output
-        glb_jjy_qty_percent = (status.quarity_raw * 100) >> jjy::PREC;
-        glb_jjy_curr_signal = status.stable_signal;
-        gpio_put(PIN_LED_OUT, status.raw_signal);
-        gpio_put(PIN_LAMP_OUT, !status.stable_signal);
-        pwm_set_gpio_level(PIN_SPEAKER_OUT, status.stable_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
 
     }
 

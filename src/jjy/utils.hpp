@@ -5,6 +5,11 @@
 
 namespace jjy {
 
+#define JJY_ABS(x) ((x) < 0 ? -(x) : (x))
+#define JJY_MIN(a, b) ((a) < (b) ? (a) : (b))
+#define JJY_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define JJY_CLIP(min, max, val) (JJY_MAX((min), JJY_MIN((max), (val))))
+
 template<typename T>
 static inline T min(T a, T b) { return a < b ? a : b; }
 

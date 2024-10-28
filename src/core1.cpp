@@ -4,11 +4,13 @@
 #include "core0.hpp"
 #include "core1.hpp"
 
+#include "atomic.hpp"
+#include "jjy/jjy.hpp"
+
 #include "ssd1309spi.hpp"
 using pen_t = ssd1309spi::pen_t;
 
-extern volatile uint8_t glb_jjy_curr_signal;
-extern volatile uint8_t glb_jjy_qty_percent;
+extern atomic<jjy::detector_status_t> glb_det_status;
 
 static constexpr int LCD_W = 128;
 static constexpr int LCD_H = 64;
@@ -23,27 +25,68 @@ static constexpr int PIN_LCD_DC = 21;
 
 ssd1309spi::Lcd<LCD_W, LCD_H, LCD_SPI_INDEX, LCD_SPI_FREQ, PIN_LCD_RES_N, PIN_LCD_CS_N, PIN_LCD_DC, PIN_LCD_SCLK, PIN_LCD_MOSI> lcd;
 
+static constexpr int WAVEFORM_W = 100;
+static constexpr int WAVEFORM_H = 8;
+static float waveform_max[WAVEFORM_W];
+static float waveform_min[WAVEFORM_W];
+
 void core1_init() {
     lcd.init();
 }
 
 void core1_main() {
-    uint32_t t_next_flip_ms = to_ms_since_boot(get_absolute_time());
-    float x = LCD_W / 2;
-    float y = LCD_H / 2;
-    float dx = 1.0 / 10;
-    float dy = 0.99999 / 10;
+    uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
+    uint32_t t_next_paint_ms = t_now_ms;
+    uint32_t t_next_sync_ms = t_now_ms;
+    jjy::detector_status_t det_sts;
+    int last_wfm_pos = -1;
+    float peak = 0;
+    float gain = 1;
     while (true) {
         uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
-        if (t_now_ms >= t_next_flip_ms) {
-            t_next_flip_ms = t_now_ms + 10;
-            //lcd.set_pixel(x, y);
-            //lcd.clear();
-            lcd.fill_rect(x - 15, y - 15, 30, 30, (t_now_ms >> 9) & 1 ? pen_t::WHITE : pen_t::BLACK);
-            x += dx;
-            y += dy;
-            if ((x < 0 && dx < 0) || (x >= LCD_W && dx > 0)) dx = -dx;
-            if ((y < 0 && dy < 0) || (y >= LCD_H && dy > 0)) dy = -dy;
+
+        if (t_now_ms >= t_next_sync_ms) {
+            t_next_sync_ms = t_now_ms + 5;
+            det_sts = glb_det_status.load();
+
+            int curr_wfm_pos = (t_now_ms % 5000) * WAVEFORM_W / 5000;
+            if (curr_wfm_pos != last_wfm_pos) {
+                waveform_max[curr_wfm_pos] = -9999;
+                waveform_min[curr_wfm_pos] = 9999;
+            }
+
+            float sig = det_sts.signal_level() * WAVEFORM_H;
+            waveform_max[curr_wfm_pos] = JJY_MAX(waveform_max[curr_wfm_pos], sig);
+            waveform_min[curr_wfm_pos] = JJY_MIN(waveform_min[curr_wfm_pos], sig);
+            last_wfm_pos = curr_wfm_pos;
+
+            //peak = 1;
+            //for (int pos = 0; pos < WAVEFORM_W; pos++) {
+            //    //uint32_t abs_peak = JJY_MAX(JJY_ABS(waveform_max[pos]), JJY_ABS(waveform_min[pos]));
+            //    //peak = JJY_MAX(peak, abs_peak);
+            //    peak = JJY_MAX(peak, waveform_max[pos]);
+            //}
+            //
+            ////gain = ((WAVEFORM_H / 2) << jjy::PREC) / peak;
+            //gain = (float)WAVEFORM_H / peak;
+        }
+
+
+        if (t_now_ms >= t_next_paint_ms) {
+            int wfm_y = LCD_H;
+            t_next_paint_ms = t_now_ms + 20;
+            lcd.clear();
+            lcd.fill_rect(0, 0, peak / 2, 2, pen_t::WHITE);
+            lcd.fill_rect(0, 3, det_sts.adc_level, 2, pen_t::WHITE);
+            lcd.fill_rect(0, 6, JJY_ABS(det_sts.adc_min) / 16, 2, pen_t::WHITE);
+            lcd.fill_rect(0, 9, JJY_ABS(det_sts.adc_max) / 16, 2, pen_t::WHITE);
+            lcd.fill_rect(0, 12, det_sts.det_threshold / 4, 2, pen_t::WHITE);
+            for (int pos = 0; pos < WAVEFORM_W; pos++) {
+                int max = JJY_CLIP(1, WAVEFORM_H, waveform_max[pos] * gain);
+                int min = JJY_CLIP(1, WAVEFORM_H, waveform_min[pos] * gain);
+                lcd.fill_rect(pos, wfm_y - max, 1, 1 + JJY_MAX(0, max - min), pen_t::WHITE);
+            }
+            lcd.fill_rect(last_wfm_pos, wfm_y - WAVEFORM_H, 1, WAVEFORM_H, pen_t::WHITE);
             lcd.commit();
         }
         lcd.service();

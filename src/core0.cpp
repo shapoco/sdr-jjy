@@ -20,11 +20,11 @@ static constexpr uint32_t RF_CLK_FREQ = 60 * KHZ;
 static constexpr int PIN_ADC_IN = 26;
 static constexpr int PIN_LED_OUT = 25;
 static constexpr int PIN_SPEAKER_OUT = 28;
-static constexpr int PIN_LAMP_OUT = 18;
+static constexpr int PIN_LAMP_OUT = 15;
 
 static constexpr uint32_t DET_FREQ = RF_CLK_FREQ * jjy::DET_RESO;
 
-using MyDmaAdc = DmaAdc<PIN_ADC_IN, DET_FREQ, jjy::DET_PERIOD>;
+using MyDmaAdc = DmaAdc<PIN_ADC_IN, DET_FREQ, jjy::DMA_SIZE>;
 
 static constexpr uint32_t SPEAKER_FREQ = 440;
 static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
@@ -33,8 +33,8 @@ static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 MyDmaAdc dma_adc;
 jjy::Detector detector;
 
-uint8_t glb_jjy_curr_signal = 0;
-
+volatile uint8_t glb_jjy_curr_signal = 0;
+volatile uint8_t glb_jjy_qty_percent = 0;
 
 int main() {
     set_sys_clock_khz(SYS_CLK_FREQ / KHZ, true);
@@ -95,7 +95,7 @@ int main() {
         t_last_us = t_now_us;
 
         detector.detect(dma_buff);
-        const auto& status = detector.read_status();
+        const auto& status = detector.get_status();
 
         if (status.agc_updated) {
 #if ENABLE_STDOUT
@@ -111,10 +111,11 @@ int main() {
         uint32_t t_now_ms = t_now_us / 1000;
 
         // Output
-        glb_jjy_curr_signal = status.stabled_signal;
+        glb_jjy_qty_percent = (status.quarity_raw * 100) >> jjy::PREC;
+        glb_jjy_curr_signal = status.stable_signal;
         gpio_put(PIN_LED_OUT, status.raw_signal);
-        gpio_put(PIN_LAMP_OUT, !status.stabled_signal);
-        pwm_set_gpio_level(PIN_SPEAKER_OUT, status.stabled_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
+        gpio_put(PIN_LAMP_OUT, !status.stable_signal);
+        pwm_set_gpio_level(PIN_SPEAKER_OUT, status.stable_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
 
     }
 

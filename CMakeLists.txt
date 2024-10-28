@@ -31,6 +31,7 @@ target_link_libraries(
     hardware_dma
     hardware_pwm
     hardware_adc
+    hardware_spi
 )
 
 pico_enable_stdio_usb(pico2_jjy_receiver 1)

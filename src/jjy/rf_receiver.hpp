@@ -1,5 +1,5 @@
-#ifndef JJY_DETECTOR_HPP
-#define JJY_DETECTOR_HPP
+#ifndef JJY_RF_RECEIVER_HPP
+#define JJY_RF_RECEIVER_HPP
 
 #include <stdint.h>
 #include <math.h>
@@ -14,8 +14,6 @@ namespace jjy {
 static constexpr int PREC = 12; // 演算精度
 static constexpr uint32_t DMA_SIZE = 1000; // ADC DMA サイズ
 static constexpr int DET_RESO = 1 << 3; // 直交検波の解像度
-static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
-static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
 
 typedef struct {
 public:
@@ -37,14 +35,14 @@ public:
     const float signal_level() const { return (float)(det_level_raw - det_signal_base) / (det_signal_peak - det_signal_base); }
     const float agc_amp() const { return (float)agc_amp_raw / (1 << PREC); }
     const float quarity() const { return (float)quarity_raw / (1 << PREC); }
-} detector_status_t;
+} rf_status_t;
 
 class Detector {
 public:
     static constexpr int32_t ADC_SIGNED_MAX = (1 << (PREC - 1)) - 1;
     static constexpr int32_t ADC_SIGNED_MIN = -(1 << (PREC - 1));
 
-    static constexpr uint32_t AGC_HIST_DEPTH = 100;
+    static constexpr uint32_t AGC_HIST_DEPTH = 20;
     static constexpr uint32_t AGC_HIST_STEP_MS = 1000 / AGC_HIST_DEPTH;
 
     static constexpr uint32_t AGC_AMP_MIN = 1 << (PREC - 2);
@@ -52,6 +50,8 @@ public:
 
     static constexpr uint32_t DET_HYST_RATIO = (1 << PREC) * 1 / 20;
 
+    static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
+    static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
 private:
     int32_t sin_table[DET_RESO];
 
@@ -73,7 +73,7 @@ private:
     uint32_t t_one_limit_ms;
     uint32_t t_next_agc_upd_ms;
 
-    detector_status_t status;
+    rf_status_t status;
 
 public:
     Detector() {
@@ -92,13 +92,13 @@ public:
         accum_adc_level = 0;
         accum_det_base = 0x7fffffff;
         accum_det_peak = 0;
-        threshold = (1 << PREC);
-        hysteresis = ((1 << PREC) * DET_HYST_RATIO) >> PREC;
+        threshold = 1 << (PREC - 1);
+        hysteresis = (threshold * DET_HYST_RATIO) >> PREC;
         anti_chat_sreg = 0;
         stable_signal = 0;
 
         status.adc_offset = (1 << PREC) / 2;
-        status.agc_amp_raw = (1 << PREC);
+        status.agc_amp_raw = 0;
         status.adc_level = 0;
         status.det_level_raw = 0;
         status.raw_signal = 0;
@@ -111,9 +111,7 @@ public:
         t_one_limit_ms = t_now_ms;
     }
 
-    void detect(const uint16_t *dma_buff) {
-        uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
-
+    void detect(uint32_t t_now_ms, const uint16_t *dma_buff) {
         uint32_t tmp_adc_accum = 0;
         uint32_t tmp_abs_accum = 0;
         uint32_t tmp_det_accum = 0;
@@ -214,7 +212,7 @@ public:
             // AGC ゲイン更新
             constexpr int GOAL_LEVEL = 1 << (PREC - 3);
             int32_t amp_goal = (GOAL_LEVEL << PREC) / adc_level;
-            status.agc_amp_raw += (amp_goal - (int32_t)status.agc_amp_raw) / (1 << 8);
+            status.agc_amp_raw += (amp_goal - (int32_t)status.agc_amp_raw) / (1 << 4);
             status.agc_amp_raw = JJY_CLIP(AGC_AMP_MIN, AGC_AMP_MAX, status.agc_amp_raw);
 
             // スレッショルド更新
@@ -232,7 +230,7 @@ public:
     }
 
     /// @brief 検波器の状態を取得
-    const detector_status_t &get_status() const { return (const detector_status_t &)status; }
+    const rf_status_t &get_status() const { return (const rf_status_t &)status; }
 };
 
 }

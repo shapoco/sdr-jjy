@@ -10,7 +10,7 @@
 #include "ssd1309spi.hpp"
 using pen_t = ssd1309spi::pen_t;
 
-extern atomic<jjy::detector_status_t> glb_det_status;
+extern atomic<jjy::rf_status_t> glb_det_status;
 
 static constexpr int LCD_W = 128;
 static constexpr int LCD_H = 64;
@@ -38,7 +38,7 @@ void core1_main() {
     uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
     uint32_t t_next_paint_ms = t_now_ms;
     uint32_t t_next_sync_ms = t_now_ms;
-    jjy::detector_status_t det_sts;
+    jjy::rf_status_t det_sts;
     int last_wfm_pos = -1;
     float peak = 0;
     float gain = 1;

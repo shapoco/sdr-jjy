@@ -35,7 +35,7 @@ static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 MyDmaAdc dma_adc;
 jjy::Detector detector;
 
-atomic<jjy::detector_status_t> glb_det_status;
+atomic<jjy::rf_status_t> glb_det_status;
 
 int main() {
     set_sys_clock_khz(SYS_CLK_FREQ / KHZ, true);
@@ -98,8 +98,8 @@ int main() {
         
         uint32_t t_now_ms = t_now_us / 1000;
 
-        detector.detect(dma_buff);
-        const jjy::detector_status_t &status = detector.get_status();
+        detector.detect(t_now_ms, dma_buff);
+        const jjy::rf_status_t &status = detector.get_status();
         glb_det_status.store(status);
 
         // Output

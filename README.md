@@ -1,4 +1,4 @@
-# Raspberry Pi Pico 2 JJY 受信機
+# Raspberry Pi Pico 2 JJY 受信機 (WIP)
 
 試行錯誤中。
 

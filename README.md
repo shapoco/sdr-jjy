@@ -27,7 +27,7 @@
 
 - [loop_antenna_200mm.stl](3dmodel/loop_antenna_200mm.stl)
     - 同じものを 4 個印刷して M3x10 の鍋ネジで結合
-- [loop_antenna_400mm.stl](3dmodel/loop_antenna_200mm.stl)
+- [loop_antenna_400mm.stl](3dmodel/loop_antenna_400mm.stl)
     - 同じものを 8 個印刷して M3x10 の皿ネジで結合
 
 ----

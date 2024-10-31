@@ -7,11 +7,10 @@
 
 #include "pico/stdlib.h"
 
-#include "jjy/utils.hpp"
+#include "jjy/common.hpp"
 
 namespace jjy {
 
-static constexpr int PREC = 12; // 演算精度
 static constexpr uint32_t DMA_SIZE = 1000; // ADC DMA サイズ
 static constexpr int DET_RESO = 1 << 3; // 直交検波の解像度
 

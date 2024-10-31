@@ -1,9 +1,11 @@
-#ifndef JJY_UTILS_HPP
-#define JJY_UTILS_HPP
+#ifndef JJY_COMMON_HPP
+#define JJY_COMMON_HPP
 
 #include <stdint.h>
 
 namespace jjy {
+
+static constexpr int PREC = 12; // 演算精度
 
 #define JJY_ABS(x) ((x) < 0 ? -(x) : (x))
 #define JJY_MIN(a, b) ((a) < (b) ? (a) : (b))

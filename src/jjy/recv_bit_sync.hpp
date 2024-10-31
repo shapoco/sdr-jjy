@@ -1,7 +1,7 @@
 #ifndef JJY_PHASE_DETECTOR
 #define JJY_PHASE_DETECTOR
 
-#include "jjy/utils.hpp"
+#include "jjy/common.hpp"
 
 namespace jjy {
 

@@ -1,11 +1,11 @@
-#ifndef JJY_PHASE_DETECTOR
-#define JJY_PHASE_DETECTOR
+#ifndef JJY_RX_BIT_SYNC
+#define JJY_RX_BIT_SYNC
 
 #include "jjy/common.hpp"
 
 namespace jjy::rx {
 
-class PhaseDetector {
+class BitSync {
 
 };
 

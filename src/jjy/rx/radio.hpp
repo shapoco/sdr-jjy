@@ -1,5 +1,5 @@
-#ifndef JJY_RECV_RADIO_HPP
-#define JJY_RECV_RADIO_HPP
+#ifndef JJY_RX_RADIO_HPP
+#define JJY_RX_RADIO_HPP
 
 #include <stdint.h>
 #include <math.h>
@@ -10,7 +10,6 @@
 #include "jjy/common.hpp"
 
 namespace jjy::rx {
-
 
 typedef struct {
 public:
@@ -34,7 +33,7 @@ public:
     const float quarity() const { return (float)quarity_raw / (1 << PREC); }
 } rf_status_t;
 
-class Detector {
+class Rf {
 public:
     static constexpr int32_t ADC_SIGNED_MAX = (1 << (PREC - 1)) - 1;
     static constexpr int32_t ADC_SIGNED_MIN = -(1 << (PREC - 1));
@@ -82,7 +81,7 @@ private:
     rf_status_t status;
 
 public:
-    Detector() {
+    Rf() {
         // sinテーブル
         for (int i = 0; i < DET_PERIOD; i++) {
             sin_table_40kHz[i] = round(sin(i * 2 * M_PI / DET_RESO_40KHZ) * (1 << (PREC - 1)));

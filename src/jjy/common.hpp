@@ -23,30 +23,6 @@ static constexpr T gcd(const T a, const T b) { return (b == 0) ? a : gcd(b, a % 
 template<typename T>
 static constexpr T lcm(const T a, const T b) { return a / gcd(a, b) * b; }
 
-template<typename T>
-static inline T min(T a, T b) { return a < b ? a : b; }
-
-template<typename T>
-static inline T max(T a, T b) { return a > b ? a : b; }
-
-template<typename T>
-static inline T clip(T min, T max, T value) {
-    if (value < min) return min;
-    if (value > max) return max;
-    return value;
-}
-
-#if 0
-// 高速根号計算 (fast sqrt algorithm)
-// https://takashiijiri.com/study/miscs/fastsqrt.html
-static inline float fast_sqrt(const float x) {
-    float xHalf = 0.5f * x;
-    int tmp = 0x5F3759DF - (*(int*)&x >> 1);
-    float xRes = *(float*)&tmp;
-    xRes *= (1.5f - (xHalf * xRes * xRes));
-    return xRes * x;
-}
-#else
 // 平方根を速く求める
 // http://senta.s112.xrea.com/senta/Tips/000/c6/index.html
 static inline uint32_t fast_sqrt(const uint32_t x) {
@@ -64,7 +40,6 @@ static inline uint32_t fast_sqrt(const uint32_t x) {
     ret = (ret + x / ret) >> 1;
     return ret;
 }
-#endif
 
 }
 

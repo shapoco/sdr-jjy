@@ -32,7 +32,7 @@ static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
 static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 
 DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
-jjy::rx::Detector detector;
+jjy::rx::Receiver receiver;
 
 atomic<jjy::rx::rf_status_t> glb_det_status;
 
@@ -81,7 +81,7 @@ int main() {
     uint32_t t_dma_us = 0, t_calc_us = 0;
     uint32_t t_next_print_ms = t_last_us / 1000;
 
-    detector.init(jjy::WEST_60KHZ);
+    receiver.init(jjy::WEST_60KHZ);
 
     while(true) {
 
@@ -97,8 +97,8 @@ int main() {
         
         uint32_t t_now_ms = t_now_us / 1000;
 
-        detector.detect(t_now_ms, dma_buff, DMA_SIZE);
-        const jjy::rx::rf_status_t &status = detector.get_status();
+        receiver.receive(t_now_ms, dma_buff, DMA_SIZE);
+        const jjy::rx::rf_status_t &status = receiver.rf.get_status();
         glb_det_status.store(status);
 
         // Output

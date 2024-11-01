@@ -79,17 +79,17 @@ void core1_main() {
             t_next_paint_ms = t_now_ms + 20;
             lcd.clear();
 
-            int sync_y = LCD_H - WAVEFORM_H - 1;
+            int sync_y = LCD_H - 8 - WAVEFORM_H - 1;
             sync_sts = glb_sync_status.load();
             for (int i = 0; i < jjy::rx::NUM_PHASE_CANDS; i++) {
                 jjy::rx::phase_cand_t &cand = sync_sts.phase_cands[i];
                 if (!cand.valid) continue;
                 int x = cand.phase * WAVEFORM_W / ((WAVEFORM_PERIOD_MS / 1000) * jjy::rx::PHASE_PERIOD);
-                int h = cand.score;
+                int h = cand.weight;
                 lcd.fill_rect(x, sync_y - h, 1, h, pen_t::WHITE);    
             }
 
-            int wfm_y = LCD_H;
+            int wfm_y = LCD_H - 8;
             lcd.fill_rect(0, 0, peak / 2, 2, pen_t::WHITE);
             lcd.fill_rect(0, 3, rf_sts.adc_level, 2, pen_t::WHITE);
             lcd.fill_rect(0, 6, JJY_ABS(rf_sts.adc_min) / 16, 2, pen_t::WHITE);

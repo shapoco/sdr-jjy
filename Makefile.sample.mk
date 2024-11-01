@@ -12,7 +12,8 @@ FATFS_DIR=../fatfs/source
 
 SRC_LIST=\
 	$(wildcard src/*.*) \
-	$(wildcard src/jjy/*.*)
+	$(wildcard src/jjy/*.*) \
+	$(wildcard src/jjy/rx/*.*)
 
 all: $(BIN)
 

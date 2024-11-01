@@ -18,7 +18,7 @@
 
 static constexpr uint32_t SYS_CLK_FREQ = 120 * MHZ;
 static constexpr uint32_t DET_RESO = 8;
-static constexpr uint32_t ADC_SPS = 60000 * DET_RESO;
+static constexpr uint32_t ADC_SPS = jjy::rx::DET_SPS;
 static constexpr uint32_t DMA_SIZE = 1000;
 static constexpr uint32_t DMA_PER_SEC = ADC_SPS / 1000;
 
@@ -34,7 +34,8 @@ static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
 jjy::rx::Receiver receiver;
 
-atomic<jjy::rx::rf_status_t> glb_det_status;
+atomic<jjy::rx::rf_status_t> glb_rf_status;
+atomic<jjy::rx::sync_status_t> glb_sync_status;
 
 int main() {
     set_sys_clock_khz(SYS_CLK_FREQ / KHZ, true);
@@ -98,13 +99,15 @@ int main() {
         uint32_t t_now_ms = t_now_us / 1000;
 
         receiver.receive(t_now_ms, dma_buff, DMA_SIZE);
-        const jjy::rx::rf_status_t &status = receiver.rf.get_status();
-        glb_det_status.store(status);
+        const jjy::rx::rf_status_t &rf_status = receiver.rf.get_status();
+        const jjy::rx::sync_status_t &sync_status = receiver.sync.get_status();
+        glb_rf_status.store(rf_status);
+        glb_sync_status.store(sync_status);
 
         // Output
-        gpio_put(PIN_LED_OUT, status.raw_signal);
-        gpio_put(PIN_LAMP_OUT, !status.stabilized_signal);
-        pwm_set_gpio_level(PIN_SPEAKER_OUT, status.stabilized_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
+        gpio_put(PIN_LED_OUT, rf_status.raw_signal);
+        gpio_put(PIN_LAMP_OUT, !rf_status.stabilized_signal);
+        pwm_set_gpio_level(PIN_SPEAKER_OUT, rf_status.stabilized_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
 
         if (t_now_ms >= t_next_print_ms) {
             t_next_print_ms += 1000;
@@ -112,7 +115,7 @@ int main() {
 #if ENABLE_STDOUT
             float core0usage = (float)(100 * t_calc_us) / (t_calc_us + t_dma_us);
             printf("AdcLv:%3d, AGC:%6.2f, Base/Peak:%4d/%4d, Qty:%4.2f, Core0Usage:%6.2f%%\n",
-                (int)status.adc_level, status.agc_amp(), (int)status.det_signal_base, (int)status.det_signal_peak, status.quarity(), core0usage);
+                (int)rf_status.adc_level, rf_status.agc_amp(), (int)rf_status.det_signal_base, (int)rf_status.det_signal_peak, rf_status.quarity(), core0usage);
 #endif
 
             t_calc_us = 0;

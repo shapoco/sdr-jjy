@@ -11,6 +11,9 @@
 
 namespace jjy::rx {
 
+static constexpr uint32_t DET_RESO = 1 << 3;   
+static constexpr uint32_t DET_SPS = DET_RESO * 60000;
+
 typedef struct {
 public:
     uint32_t adc_offset;
@@ -49,7 +52,6 @@ public:
     static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
     static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
 
-    static constexpr uint32_t DET_RESO = 1 << 3;
     static constexpr int DET_RESO_60KHZ = DET_RESO;
     static constexpr int DET_RESO_40KHZ = DET_RESO * 3 / 2;
     static constexpr uint32_t DET_PERIOD = lcm(DET_RESO_60KHZ, DET_RESO_40KHZ);
@@ -248,7 +250,9 @@ public:
     }
 
     /// @brief 検波器の状態を取得
-    const rf_status_t &get_status() const { return (const rf_status_t &)status; }
+    const rf_status_t &get_status() const {
+        return (const rf_status_t &)status;
+    }
 };
 
 }

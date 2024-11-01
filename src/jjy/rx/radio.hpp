@@ -9,7 +9,7 @@
 
 #include "jjy/common.hpp"
 
-namespace jjy {
+namespace jjy::rx {
 
 
 typedef struct {

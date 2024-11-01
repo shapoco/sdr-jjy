@@ -1,5 +1,5 @@
-#ifndef JJY_RF_RECEIVER_HPP
-#define JJY_RF_RECEIVER_HPP
+#ifndef JJY_RECV_RADIO_HPP
+#define JJY_RECV_RADIO_HPP
 
 #include <stdint.h>
 #include <math.h>
@@ -11,8 +11,6 @@
 
 namespace jjy {
 
-static constexpr uint32_t DMA_SIZE = 1000; // ADC DMA サイズ
-static constexpr int DET_RESO = 1 << 3; // 直交検波の解像度
 
 typedef struct {
 public:
@@ -23,7 +21,7 @@ public:
     int32_t adc_max;
     uint32_t det_level_raw;
     uint8_t raw_signal;
-    uint8_t stable_signal;
+    uint8_t stabilized_signal;
     uint32_t quarity_raw;
 
     uint32_t det_threshold;
@@ -51,8 +49,17 @@ public:
 
     static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
     static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
+
+    static constexpr uint32_t DET_RESO = 1 << 3;
+    static constexpr int DET_RESO_60KHZ = DET_RESO;
+    static constexpr int DET_RESO_40KHZ = DET_RESO * 3 / 2;
+    static constexpr uint32_t DET_PERIOD = lcm(DET_RESO_60KHZ, DET_RESO_40KHZ);
+
 private:
-    int32_t sin_table[DET_RESO];
+    freq_t freq = freq_t::EAST_40KHZ;
+
+    int32_t sin_table_40kHz[DET_PERIOD];
+    int32_t sin_table_60kHz[DET_PERIOD];
 
     int phase;
     uint32_t accum_adc_level;
@@ -67,7 +74,7 @@ private:
     uint32_t threshold;
     uint32_t hysteresis;
     uint8_t anti_chat_sreg;
-    uint8_t stable_signal;
+    uint8_t stabilized_signal;
 
     uint32_t t_one_limit_ms;
     uint32_t t_next_agc_upd_ms;
@@ -77,12 +84,17 @@ private:
 public:
     Detector() {
         // sinテーブル
-        for (int i = 0; i < DET_RESO; i++) {
-            sin_table[i] = round(sin(i * 2 * M_PI / DET_RESO) * (1 << (PREC - 1)));
+        for (int i = 0; i < DET_PERIOD; i++) {
+            sin_table_40kHz[i] = round(sin(i * 2 * M_PI / DET_RESO_40KHZ) * (1 << (PREC - 1)));
+        }
+        for (int i = 0; i < DET_PERIOD; i++) {
+            sin_table_60kHz[i] = round(sin(i * 2 * M_PI / DET_RESO_60KHZ) * (1 << (PREC - 1)));
         }
     }
 
-    void init() {
+    void init(freq_t freq) {
+        this->freq = freq;
+
         phase = 0;
         history_index = 0;
         memset(history_adc_level, 0, sizeof(uint32_t) * AGC_HIST_DEPTH);
@@ -94,14 +106,14 @@ public:
         threshold = 1 << (PREC - 1);
         hysteresis = (threshold * DET_HYST_RATIO) >> PREC;
         anti_chat_sreg = 0;
-        stable_signal = 0;
+        stabilized_signal = 0;
 
         status.adc_offset = (1 << PREC) / 2;
         status.agc_amp_raw = 0;
         status.adc_level = 0;
         status.det_level_raw = 0;
         status.raw_signal = 0;
-        status.stable_signal = 0;
+        status.stabilized_signal = 0;
         status.det_signal_base = 0;
         status.det_signal_peak = 0;
         
@@ -110,14 +122,14 @@ public:
         t_one_limit_ms = t_now_ms;
     }
 
-    void detect(uint32_t t_now_ms, const uint16_t *dma_buff) {
+    uint8_t detect(const uint32_t t_now_ms, const uint16_t *samples, const uint32_t size) {
         uint32_t tmp_adc_accum = 0;
         uint32_t tmp_abs_accum = 0;
         uint32_t tmp_det_accum = 0;
         int32_t tmp_adc_min = (1 << (PREC * 2));
         int32_t tmp_adc_max = -(1 << (PREC * 2));
-        for (int i = 0; i < DMA_SIZE; i++) {
-            uint16_t adc_raw = dma_buff[i];
+        for (int i = 0; i < size; i++) {
+            uint16_t adc_raw = samples[i];
             tmp_adc_accum += adc_raw;
 
             // オフセットの減算
@@ -131,8 +143,15 @@ public:
             adc_signed = JJY_CLIP(ADC_SIGNED_MIN, ADC_SIGNED_MAX, adc_signed);
 
             // 直交検波
-            int32_t sin = sin_table[phase];
-            int32_t cos = sin_table[(phase + DET_RESO / 4) % DET_RESO];
+            int32_t sin, cos;
+            if (freq == freq_t::EAST_40KHZ) {
+                sin = sin_table_40kHz[phase];
+                cos = sin_table_40kHz[(phase + DET_RESO_40KHZ / 4) % DET_RESO_40KHZ];
+            }
+            else {
+                sin = sin_table_60kHz[phase];
+                cos = sin_table_60kHz[(phase + DET_RESO_60KHZ / 4) % DET_RESO_60KHZ];
+            }
             int32_t u = (sin * adc_signed) >> PREC;
             int32_t v = (cos * adc_signed) >> PREC;
             tmp_det_accum += (uint32_t)fast_sqrt(u * u + v * v);
@@ -144,13 +163,13 @@ public:
         status.adc_max = tmp_adc_max;
 
         // オフセットの再計算
-        status.adc_offset = tmp_adc_accum / DMA_SIZE;
+        status.adc_offset = tmp_adc_accum / size;
 
         // ADC 振幅計算
-        accum_adc_level = JJY_MAX(accum_adc_level, tmp_abs_accum / DMA_SIZE);
+        accum_adc_level = JJY_MAX(accum_adc_level, tmp_abs_accum / size);
 
         // 直交検波後の信号レベル
-        status.det_level_raw = tmp_det_accum / DMA_SIZE;
+        status.det_level_raw = tmp_det_accum / size;
         accum_det_base = JJY_MIN(accum_det_base, status.det_level_raw);
         accum_det_peak = JJY_MAX(accum_det_peak, status.det_level_raw);
 
@@ -163,22 +182,22 @@ public:
         anti_chat_sreg = (anti_chat_sreg << 1) & ((1 << ANTI_CHAT_CYCLES) - 1);
         if (status.raw_signal) anti_chat_sreg |= 1;
         if (anti_chat_sreg == 0) {
-            stable_signal = 0;
+            stabilized_signal = 0;
         }
         else if (anti_chat_sreg == ((1 << ANTI_CHAT_CYCLES) - 1)) {
-            stable_signal = 1;
+            stabilized_signal = 1;
         }
 
         // パルス幅制限
-        if (!stable_signal) {
-            status.stable_signal = 0;
+        if (!stabilized_signal) {
+            status.stabilized_signal = 0;
             t_one_limit_ms = t_now_ms + PULSE_WIDTH_LIMIT_MS;
         }
         else if (t_now_ms < t_one_limit_ms) {
-            status.stable_signal = 1;
+            status.stabilized_signal = 1;
         }
         else {
-            status.stable_signal = 0;
+            status.stabilized_signal = 0;
         }
 
         if (t_now_ms >= t_next_agc_upd_ms) {
@@ -226,6 +245,7 @@ public:
             status.quarity_raw = ((det_peak - det_base) << PREC) / det_peak;
         }
 
+        return status.stabilized_signal;
     }
 
     /// @brief 検波器の状態を取得

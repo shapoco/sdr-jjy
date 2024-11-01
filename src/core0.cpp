@@ -17,22 +17,21 @@
 #define ENABLE_STDOUT (1)
 
 static constexpr uint32_t SYS_CLK_FREQ = 120 * MHZ;
-static constexpr uint32_t RF_CLK_FREQ = 60 * KHZ;
+static constexpr uint32_t DET_RESO = 8;
+static constexpr uint32_t ADC_SPS = 60000 * DET_RESO;
+static constexpr uint32_t DMA_SIZE = 1000;
+static constexpr uint32_t DMA_PER_SEC = ADC_SPS / 1000;
 
 static constexpr int PIN_ADC_IN = 26;
 static constexpr int PIN_LED_OUT = 25;
 static constexpr int PIN_SPEAKER_OUT = 28;
 static constexpr int PIN_LAMP_OUT = 15;
 
-static constexpr uint32_t DET_FREQ = RF_CLK_FREQ * jjy::DET_RESO;
-
-using MyDmaAdc = DmaAdc<PIN_ADC_IN, DET_FREQ, jjy::DMA_SIZE>;
-
 static constexpr uint32_t SPEAKER_FREQ = 440;
 static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
 static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 
-MyDmaAdc dma_adc;
+DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
 jjy::Detector detector;
 
 atomic<jjy::rf_status_t> glb_det_status;
@@ -82,7 +81,7 @@ int main() {
     uint32_t t_dma_us = 0, t_calc_us = 0;
     uint32_t t_next_print_ms = t_last_us / 1000;
 
-    detector.init();
+    detector.init(jjy::WEST_60KHZ);
 
     while(true) {
 
@@ -98,14 +97,14 @@ int main() {
         
         uint32_t t_now_ms = t_now_us / 1000;
 
-        detector.detect(t_now_ms, dma_buff);
+        detector.detect(t_now_ms, dma_buff, DMA_SIZE);
         const jjy::rf_status_t &status = detector.get_status();
         glb_det_status.store(status);
 
         // Output
         gpio_put(PIN_LED_OUT, status.raw_signal);
-        gpio_put(PIN_LAMP_OUT, !status.stable_signal);
-        pwm_set_gpio_level(PIN_SPEAKER_OUT, status.stable_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
+        gpio_put(PIN_LAMP_OUT, !status.stabilized_signal);
+        pwm_set_gpio_level(PIN_SPEAKER_OUT, status.stabilized_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
 
         if (t_now_ms >= t_next_print_ms) {
             t_next_print_ms += 1000;

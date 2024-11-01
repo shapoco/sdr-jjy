@@ -7,10 +7,21 @@ namespace jjy {
 
 static constexpr int PREC = 12; // 演算精度
 
+typedef enum {
+    WEST_60KHZ,
+    EAST_40KHZ,
+} freq_t;
+
 #define JJY_ABS(x) ((x) < 0 ? -(x) : (x))
 #define JJY_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define JJY_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define JJY_CLIP(min, max, val) (JJY_MAX((min), JJY_MIN((max), (val))))
+
+template<typename T>
+static constexpr T gcd(const T a, const T b) { return (b == 0) ? a : gcd(b, a % b); }
+
+template<typename T>
+static constexpr T lcm(const T a, const T b) { return a / gcd(a, b) * b; }
 
 template<typename T>
 static inline T min(T a, T b) { return a < b ? a : b; }

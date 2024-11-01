@@ -6,4 +6,8 @@
 #include "jjy/recv_decoder.hpp"
 #include "jjy/recv_radio.hpp"
 
+namespace jjy {
+
+}
+
 #endif

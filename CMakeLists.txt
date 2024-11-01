@@ -34,7 +34,7 @@ target_link_libraries(
     hardware_spi
 )
 
-# pico_enable_stdio_usb(pico2_jjy_receiver 1)
-# pico_enable_stdio_uart(pico2_jjy_receiver 0)
+pico_enable_stdio_usb(pico2_jjy_receiver 1)
+pico_enable_stdio_uart(pico2_jjy_receiver 0)
 
 pico_add_extra_outputs(pico2_jjy_receiver)

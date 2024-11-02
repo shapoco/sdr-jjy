@@ -5,15 +5,16 @@
 namespace fxp12 {
 
 static bool table_inited = false;
-int32_t sin_table[ANGLE_PERIOD];
-int32_t cos_table[ANGLE_PERIOD];
+static int32_t sin_table[ANGLE_PERIOD];
+static int32_t cos_table[ANGLE_PERIOD];
 
 void init_tables(void) {
     if (table_inited) return;
     for (int a = 0; a < ANGLE_PERIOD; a++) {
-        sin_table[a] = round(sin(a * 2 * M_PI / ANGLE_PERIOD) * ONE);
-        cos_table[a] = round(cos(a * 2 * M_PI / ANGLE_PERIOD) * ONE);
+        sin_table[a] = round(::sin(a * 2 * M_PI / ANGLE_PERIOD) * ONE);
+        cos_table[a] = round(::cos(a * 2 * M_PI / ANGLE_PERIOD) * ONE);
     }
+    table_inited = true;
 }
 
 int32_t normalize_angle(int32_t a) {

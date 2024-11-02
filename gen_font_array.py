@@ -8,7 +8,7 @@ import numpy as np
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-s', '--src-image', required=True)
+parser.add_argument('-s', '--src', required=True)
 parser.add_argument('-n', '--name', required=True)
 parser.add_argument('-o', '--outdir', required=True)
 parser.add_argument('-i', '--incdir', required=True)
@@ -20,7 +20,7 @@ args = parser.parse_args()
 if args.spacing < 0:
     args.spacing = (args.height + 7) // 8
 
-img = Image.open(args.src_image)
+img = Image.open(args.src)
 width, height = img.size
 img_pixels = np.array([[img.getpixel((x,y)) for x in range(width)] for y in range(height)])
 

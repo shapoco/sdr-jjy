@@ -11,7 +11,6 @@
 namespace jjy::rx {
 
 static constexpr int NUM_PHASE_CANDS = 10;
-static constexpr int LOCK_WAIT_TIME_MS = 1024 * 3;
 
 typedef struct {
     int32_t phase;
@@ -22,53 +21,81 @@ typedef struct {
 typedef struct {
     phase_cand_t phase_cands[NUM_PHASE_CANDS];
     int32_t phase;
-    bool locked;
-    int32_t lock_progress;
+    bool phase_locked;
+    int32_t phase_lock_progress;
+    int32_t bit_det_quality;
+    int32_t bit_det_progress;
+    bool bit_det_ok;
 } sync_status_t;
 
 class Synchronizer {
+private:
+    static constexpr int LOCK_WAIT_TIME_MS = 1024 * 5;
+    static constexpr int SCORE_MAX = 10;
+    static constexpr int BITDET_NUM_SLOTS = 10;
+    static constexpr int BITDET_OK_THRESH = 5;
+
 public:
     sync_status_t status;
-    uint8_t in_last = 0;
+
     uint32_t t_last_ms = 0;
-    uint32_t t_next_cand_upd;
-    uint32_t t_phase_expire;
-    uint32_t t_last_unlock;
-    int last_cand_index = -1;
+    uint8_t last_in = 0;
 
-private:
-    static constexpr int WEIGHT_MAX = 10;
+    uint32_t phase_t_next_cand_upd;
+    uint32_t phase_t_last_unlock;
+    uint32_t phase_t_expire;
+    int phase_last_cand_index = -1;
 
-public:
+    int32_t bitdet_last_slot;
+    int bitdet_hi_count = 0;
+    int bitdet_lo_count = 0;
+    uint32_t bitdet_sreg = 0;
+    int bitdet_ok_count = 0;
+    int32_t bitdet_quality_accum = 0;
+
     void init() {
-        in_last = 0;
+        uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());;
+
+        t_last_ms = t_now_ms;
+        last_in = 0;
+
+        phase_t_next_cand_upd = t_now_ms;
+        phase_t_last_unlock = t_now_ms;
+        phase_t_expire = 0;
+        phase_last_cand_index = -1;
+
+        bitdet_last_slot = 0;
+        bitdet_hi_count = 0;
+        bitdet_lo_count = 0;
+        bitdet_sreg = 0;
+        bitdet_ok_count = 0;
+        bitdet_quality_accum = 0;
+
         for (int i = 0; i < NUM_PHASE_CANDS; i++) {
             status.phase_cands[i].valid = false;
             status.phase_cands[i].phase = 0;
         }
         status.phase = 0;
-        status.locked = false;
-        status.lock_progress = 0;
-
-        uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());;
-        t_last_ms = t_now_ms;
-        t_next_cand_upd = t_now_ms;
-        t_last_unlock = t_now_ms;
-        t_phase_expire = 0;
+        status.phase_locked = false;
+        status.phase_lock_progress = 0;
+        status.bit_det_quality = 0;
+        status.bit_det_progress = 0;
+        status.bit_det_ok = false;
     }
 
-    bool synchronize(uint32_t t_now_ms, uint8_t in, uint8_t *out) {
+    bool synchronize(uint32_t t_now_ms, uint8_t in, jjybit_t *out) {
         uint32_t t_delta = t_now_ms - t_last_ms;
         t_last_ms = t_now_ms;
 
-        int32_t phase = (t_now_ms % 1000) * PHASE_PERIOD / 1000;
+        int32_t phase_ms = t_now_ms % 1000;
+        int32_t phase = phase_ms * PHASE_PERIOD / 1000;
 
-        // エッジの減衰
-        bool cand_upd = t_now_ms > t_next_cand_upd;
+        bool cand_upd = t_now_ms > phase_t_next_cand_upd;
         if (cand_upd) {
-            t_next_cand_upd = JJY_MAX(t_now_ms + 500, t_next_cand_upd + 1000);
+            phase_t_next_cand_upd = JJY_MAX(t_now_ms + 500, phase_t_next_cand_upd + 1000);
         }
 
+        // エッジの減衰
         if (cand_upd) {
             int num_valid_cand = 0;
             for (int i = 0; i < NUM_PHASE_CANDS; i++) {
@@ -78,13 +105,13 @@ public:
                 if (cand.valid) num_valid_cand += 1;
             }
             if (num_valid_cand == 0) {
-                t_phase_expire = 0;
+                phase_t_expire = 0;
             }
         }
 
         // エッジ検出
-        bool rise = !!in && !in_last;
-        in_last = in;
+        bool rise = !!in && !last_in;
+        last_in = in;
         if (rise) add_edge(phase);
 
         if (cand_upd || rise) {
@@ -102,37 +129,106 @@ public:
                 }
             }
             if (best_index < 0) {
-                t_phase_expire = 0;
+                phase_t_expire = 0;
             }
-            else if (last_cand_index == best_index) {
-                t_phase_expire = t_now_ms + 1200;
+            else if (phase_last_cand_index == best_index) {
+                phase_t_expire = t_now_ms + 1200;
                 status.phase = best_phase;
             }
             else {
-                t_phase_expire = 0;
+                phase_t_expire = 0;
                 status.phase = best_phase;
             }
-            last_cand_index = best_index;
+            phase_last_cand_index = best_index;
         }
 
-        // Locked 判定
-        bool phase_valid = t_now_ms < t_phase_expire;
-        if (phase_valid) {
-            int32_t elapsed_ms = t_now_ms - t_last_unlock;
-            status.locked = elapsed_ms >= LOCK_WAIT_TIME_MS;
-            if (status.locked) {
-                status.lock_progress = ONE;    
+        // ビット位相ロック判定
+        if (t_now_ms < phase_t_expire) {
+            int32_t elapsed_ms = t_now_ms - phase_t_last_unlock;
+            status.phase_locked = elapsed_ms >= LOCK_WAIT_TIME_MS;
+            if (status.phase_locked) {
+                status.phase_lock_progress = ONE;    
             }
             else {
-                status.lock_progress = JJY_CLIP(0, ONE, elapsed_ms * ONE / LOCK_WAIT_TIME_MS);
+                status.phase_lock_progress = JJY_CLIP(0, ONE, elapsed_ms * ONE / LOCK_WAIT_TIME_MS);
             }
         }
         else {
-            t_last_unlock = t_now_ms;
-            status.lock_progress = 0;
+            phase_t_last_unlock = t_now_ms;
+            status.phase_lock_progress = 0;
         }
 
-        return false;
+        return detect_bit(in, phase, out);
+    }
+
+    bool detect_bit(uint8_t in, int32_t phase, jjybit_t *out) {
+        // ビット検出
+        int32_t bit_phase = phase_add(phase, -status.phase);
+        int32_t slot = bit_phase * BITDET_NUM_SLOTS / PHASE_PERIOD;
+        bool slot_changed = bitdet_last_slot != slot;
+        bitdet_last_slot = slot;
+
+        if (!status.phase_locked) {
+            bitdet_hi_count = 0;
+            bitdet_lo_count = 0;
+            bitdet_sreg = 0;
+            bitdet_quality_accum = 0;
+            status.bit_det_quality = 0;
+            status.bit_det_progress = 0;
+            status.bit_det_ok = false;
+            return false;
+        }
+
+        bool out_enable = false;
+        if (!slot_changed) {
+            if (in) bitdet_hi_count += 1;
+            else bitdet_lo_count += 1;
+        }
+        else {
+            uint8_t hi = bitdet_hi_count > bitdet_lo_count ? 1 : 0;
+            bitdet_sreg <<= 1;
+            bitdet_sreg |= hi;
+            bitdet_sreg &= (1 << BITDET_NUM_SLOTS) - 1;
+
+            bitdet_quality_accum += (hi ? bitdet_hi_count : bitdet_lo_count) * ONE / (bitdet_hi_count + bitdet_lo_count);
+
+            out_enable = (slot == 0);
+            jjybit_t out_value;
+            if (out_enable) {
+                switch (bitdet_sreg) {
+                case 0b1100000000: out_value = jjybit_t::MARKER; break;
+                case 0b1111100000: out_value = jjybit_t::ONE; break;
+                case 0b1111111100: out_value = jjybit_t::ZERO; break;
+                default: out_value = jjybit_t::ERROR; break;
+                }
+                status.bit_det_quality = bitdet_quality_accum / BITDET_NUM_SLOTS;
+                if (out_value == jjybit_t::ERROR) {
+                    bitdet_ok_count = 0;
+                } 
+                else {
+                    bitdet_ok_count = JJY_MIN(BITDET_OK_THRESH, bitdet_ok_count + 1);
+                }
+
+            }
+            *out = out_value;
+
+            bitdet_hi_count = 0;
+            bitdet_lo_count = 0;
+            bitdet_quality_accum = 0;
+        }
+
+        status.bit_det_ok = bitdet_ok_count >= BITDET_OK_THRESH;
+        if (status.bit_det_ok) {
+            status.bit_det_progress = ONE;
+        }
+        else if (bitdet_ok_count == 0) {
+            status.bit_det_progress = 0;
+        }
+        else {
+            status.bit_det_progress = (((bitdet_ok_count - 1) * PHASE_PERIOD) + bit_phase) / (BITDET_OK_THRESH - 1);
+        }
+
+        return out_enable;
     }
 
     void add_edge(int32_t phase) {
@@ -146,8 +242,8 @@ public:
             if (!cand.valid) continue;
             int32_t phase_diff = calc_phase_diff(phase, cand.phase);
             if (JJY_ABS(phase_diff) < NEAR_THRESH) {
-                cand.phase = (cand.phase + PHASE_PERIOD + phase_diff / (2 + cand.score * 8 / WEIGHT_MAX)) % PHASE_PERIOD;
-                cand.score = JJY_MIN(WEIGHT_MAX, cand.score + score_add);
+                cand.phase = (cand.phase + PHASE_PERIOD + phase_diff / (2 + cand.score * 8 / SCORE_MAX)) % PHASE_PERIOD;
+                cand.score = JJY_MIN(SCORE_MAX, cand.score + score_add);
                 found = true;
                 break;
             }
@@ -176,7 +272,7 @@ public:
                 phase_cand_t &cand_a = status.phase_cands[nearest_ia];
                 phase_cand_t &cand_b = status.phase_cands[nearest_ib];
                 cand_a.phase += nearest_diff * cand_b.score / (cand_a.score + cand_b.score);
-                cand_a.score = JJY_MIN(WEIGHT_MAX, cand_a.score + cand_b.score);
+                cand_a.score = JJY_MIN(SCORE_MAX, cand_a.score + cand_b.score);
                 cand_b.valid = false;
                 cand_b.score = 0;
             }

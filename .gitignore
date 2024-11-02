@@ -1,3 +1,4 @@
+.trash/
 .vscode/
 build/
 Makefile

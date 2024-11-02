@@ -14,6 +14,13 @@ typedef enum {
     EAST_40KHZ,
 } freq_t;
 
+enum class jjybit_t : uint8_t {
+    ZERO = 0,
+    ONE = 1,
+    MARKER = 2,
+    ERROR = 3,
+};
+
 #define JJY_ABS(x) ((x) >= 0 ? (x) : -(x))
 #define JJY_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define JJY_MAX(a, b) ((a) > (b) ? (a) : (b))

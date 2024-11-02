@@ -23,8 +23,8 @@ public:
         uint8_t signal = rf.detect(t_now_ms, samples, size);
 
         // ビット同期
-        uint8_t bit;
-        sync.synchronize(t_now_ms, signal, &bit);
+        jjybit_t bit;
+        bool tick = sync.synchronize(t_now_ms, signal, &bit);
     }
 };
 

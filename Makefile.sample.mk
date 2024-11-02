@@ -1,4 +1,4 @@
-.PHONY: all bmpfont install launch-openocd clean distclean
+.PHONY: all images bmpfont install launch-openocd clean distclean
 
 REPO_DIR=$(shell pwd)
 SRC_DIR=.
@@ -9,6 +9,12 @@ BIN=$(BUILD_DIR)/$(BIN_NAME)
 
 CORE_DIR=../../core
 FATFS_DIR=../fatfs/source
+
+IMAGES_CPP = src/images/images.cpp
+IMAGES_HPP = src/images/images.hpp
+IMAGES_SRC_LIST = \
+	$(wildcard src/bit_icons.png)
+IMAGES_CPP_GEN_CMD = ./gen_bmp_array.py
 
 FONT16_NAME = font16
 
@@ -28,10 +34,13 @@ SRC_LIST=\
 	$(wildcard src/*.*) \
 	$(wildcard src/jjy/*.*) \
 	$(wildcard src/jjy/rx/*.*) \
-	$(FONT_COMMON_HPP)
+	$(FONT_COMMON_HPP) \
+	$(IMAGES_CPP) \
+	$(IMAGES_HPP)
 
 all: $(BIN)
 bmpfont: $(FONT_HPP_LIST)
+images: $(IMAGES_HPP)
 
 $(BIN): $(SRC_LIST) $(FONT_HPP_LIST) CMakeLists.txt
 	mkdir -p $(BUILD_DIR)
@@ -43,10 +52,23 @@ $(BIN): $(SRC_LIST) $(FONT_HPP_LIST) CMakeLists.txt
 	@echo $(REPO_DIR)/$(BIN)
 	@ls -l $(REPO_DIR)/$(BIN)
 
+$(IMAGES_HPP): $(IMAGES_CPP)
+$(IMAGES_CPP): $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
+	rm -f $(IMAGES_CPP) $(IMAGES_HPP)
+	@echo "#ifndef IMAGES_HPP" >> $(IMAGES_HPP)
+	@echo "#define IMAGES_HPP" >> $(IMAGES_HPP)
+	@echo >> $(IMAGES_HPP)
+	@echo "#include <stdint.h>" >> $(IMAGES_HPP)
+	@echo >> $(IMAGES_HPP)
+	@echo "#include <stdint.h>" >> $(IMAGES_CPP)
+	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src bmp/bit_icons.png --name bmp_bit_icons
+	@echo >> $(IMAGES_HPP)
+	@echo "#endif" >> $(IMAGES_HPP)
+
 $(FONT_SRC_DIR)/$(FONT16_NAME).hpp : $(FONT_SRC_DIR)/$(FONT16_NAME).cpp
 $(FONT_SRC_DIR)/$(FONT16_NAME).cpp : $(FONT_BMP_DIR)/$(FONT16_NAME).png $(FONT_CPP_GEN_CMD)
 	$(FONT_CPP_GEN_CMD) \
-		--src-image $< \
+		--src $< \
 		--name $(FONT16_NAME) \
 		--outdir $(FONT_SRC_DIR) \
 		--incdir $(FONT_INC_DIR) \
@@ -72,6 +94,7 @@ launch-openocd: $(BIN)
 clean:
 	rm -f $(BIN)
 	rm -f $(FONT_HPP_LIST) $(FONT_CPP_LIST)
+	rm -f $(IMAGES_HPP) $(IMAGES_CPP)
 
 distclean:
 	rm -rf build

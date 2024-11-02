@@ -6,13 +6,15 @@
 namespace jjy {
 
 static constexpr int PREC = 12; // 演算精度
+static constexpr int32_t ONE = 1 << PREC;
+static constexpr int32_t PHASE_PERIOD = ONE;
 
 typedef enum {
     WEST_60KHZ,
     EAST_40KHZ,
 } freq_t;
 
-#define JJY_ABS(x) ((x) < 0 ? -(x) : (x))
+#define JJY_ABS(x) ((x) >= 0 ? (x) : -(x))
 #define JJY_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define JJY_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define JJY_CLIP(min, max, val) (JJY_MAX((min), JJY_MIN((max), (val))))
@@ -22,6 +24,24 @@ static constexpr T gcd(const T a, const T b) { return (b == 0) ? a : gcd(b, a % 
 
 template<typename T>
 static constexpr T lcm(const T a, const T b) { return a / gcd(a, b) * b; }
+
+static int32_t phase_add(int32_t x, int32_t delta) {
+    int32_t ret = x + delta;
+    if (ret < 0) {
+        do { ret += PHASE_PERIOD; } while (ret < 0);
+    }
+    else if (ret >= PHASE_PERIOD) {
+        do { ret -= PHASE_PERIOD; } while (ret >= PHASE_PERIOD);
+    }
+    return ret;
+}
+
+static int32_t calc_phase_diff(int32_t a, int32_t b) {
+    int32_t diff = a - b;
+    if (diff < -PHASE_PERIOD / 2) return diff + PHASE_PERIOD;
+    if (diff >= PHASE_PERIOD / 2) return diff - PHASE_PERIOD;
+    return diff;
+}
 
 // 平方根を速く求める
 // http://senta.s112.xrea.com/senta/Tips/000/c6/index.html

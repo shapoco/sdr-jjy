@@ -10,6 +10,9 @@
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
 
+#include "fixed12.hpp"
+#include "bmpfont/bmpfont.hpp"
+
 namespace ssd1309spi {
 
 template<typename T>
@@ -24,6 +27,19 @@ static inline T clip(T min, T max, T value) {
     if (value > max) return max;
     return value;
 }
+
+class Rect {
+public:
+    int x, y, w, h;
+    Rect() : x(0), y(0), w(0), h(0) {}
+    Rect(int x, int y, int w, int h) : x(x), y(y), w(w), h(h) { }
+    int r() const { return x + w; }
+    int b() const { return y + h; }
+    int cx() const { return (x + w / 2); }
+    int cy() const { return (y + h / 2); }
+};
+
+Rect clip_rect(const Rect rect, int w, int h);
 
 using seg_t = uint8_t;
 
@@ -170,16 +186,20 @@ public:
         }
     }
 
-    void fill_rect(int x, int y, int w, int h, pen_t c = pen_t::WHITE) {
-        int r = x + w, b = y + h;
-        x = clip(0, W, x);
-        y = clip(0, H, y);
-        r = clip(0, W, r);
-        b = clip(0, H, b);
-        w = r - x;
-        h = b - y;
-        if (w <= 0 || h <= 0) return;
-        
+    void fill_rect(int x, int y, int w, int h, pen_t pen = pen_t::WHITE) {
+        fill_rect(Rect(x, y, w, h), pen);
+    }
+
+    void fill_rect(Rect rect, pen_t c = pen_t::WHITE) {
+        rect = clip_rect(rect, W, H);
+        if (rect.w <= 0 || rect.h <= 0) return;
+        int x = rect.x;
+        int y = rect.y;
+        int w = rect.w;
+        int h = rect.h;
+        int r = rect.r();
+        int b = rect.b();
+
         int first_page = y / PAGE_H;
         int final_page = (b - 1) / PAGE_H;
         seg_t first_seg = ~(seg_t)((1 << (y % PAGE_H)) - 1);
@@ -210,6 +230,114 @@ public:
                     *(wr_ptr++) |= mask;
                 }
             }
+        }
+    }
+
+    void draw_line(int x0, int y0, int x1, int y1, pen_t pen = pen_t::WHITE) {
+        int dx = x1 - x0;
+        int dy = y1 - y0;
+        int w = dx >= 0 ? dx : -dx;
+        int h = dy >= 0 ? dy : -dy;
+        if (w > h) {
+            int x = x0;
+            int x_step = dx >= 0 ? 1 : -1;
+            for (int i = 0; i < w; i++) {
+                int y = y0 + dy * i / w;
+                set_pixel(x, y, pen);
+                x += x_step;
+            }
+        }
+        else {
+            int y = y0;
+            int y_step = dy >= 0 ? 1 : -1;
+            for (int i = 0; i < h; i++) {
+                int x = x0 + dx * i / h;
+                set_pixel(x, y, pen);
+                y += y_step;
+            }
+        }
+    }
+
+    void fill_ellipse_f(int x, int y, int w, int h, pen_t pen = pen_t::WHITE) {
+        fill_ellipse_f(Rect(x, y, w, h), pen);
+    }
+
+    void fill_ellipse_f(const Rect rect_fxp, pen_t pen = pen_t::WHITE) {
+        Rect dest_rect = rect_fxp;
+        int r = (dest_rect.r() + fxp12::ONE - 1) / fxp12::ONE;
+        int b = (dest_rect.b() + fxp12::ONE - 1) / fxp12::ONE;
+        dest_rect.x /= fxp12::ONE;
+        dest_rect.y /= fxp12::ONE;
+        dest_rect.w = r - dest_rect.x;
+        dest_rect.h = b - dest_rect.y;
+        dest_rect = clip_rect(dest_rect, W, H);
+        if (dest_rect.w <= 0 || dest_rect.h <= 0) return;
+        const int rx = rect_fxp.w / 2;
+        const int ry = rect_fxp.h / 2;
+        const int cx = rect_fxp.x + rx;
+        const int cy = rect_fxp.y + ry;
+        const int dx = dest_rect.x;
+        const int dy = dest_rect.y;
+        const int dr = dest_rect.r();
+        const int db = dest_rect.b();
+        for (int y = dy; y < db; y++) {
+            for (int x = dx; x < dr; x++) {
+                int sx = (x * fxp12::ONE - cx) * 16 / rx;
+                int sy = (y * fxp12::ONE - cy) * 16 / ry;
+                if (sx * sx + sy * sy <= 16 * 16) {
+                    set_pixel(x, y, pen);
+                }
+            }
+        }
+    }
+
+    void draw_bitmap(int x0, int y0, const uint8_t *bitmap) {
+        int w = ((int)bitmap[1] << 8) | ((int)bitmap[0]);
+        int h = ((int)bitmap[3] << 8) | ((int)bitmap[2]);
+        int stride = (w + 7) / 8;
+        draw_bitmap(x0, y0, bitmap + 4, 0, 0, w, h, stride);
+    }
+
+    int draw_string(const bmpfont::Font &font, int dx0, int dy0, const char* s) {
+        int n = strlen(s);
+        const char *c = s;
+        for (int i = 0; i < n; i++) {
+            dx0 += draw_char(font, dx0, dy0, *(c++)) + font.spacing;
+        }
+        return dx0;
+    }
+
+    int draw_char(const bmpfont::Font &font, int dx0, int dy0, char c) {
+        if (!font.contains_char(c)) {
+            return 0;
+        }
+        const bmpfont::CharInfo &ci = font.get_char_info(c);
+        draw_bitmap(dx0, dy0, font.bitmap + ci.offset, 0, 0, ci.width, font.height, (ci.width + 7) / 8);
+        return ci.width;
+    }
+
+    void draw_bitmap(int dx0, int dy0, const uint8_t *src, int sx0, int sy0, int w, int h, int sstride) {
+        const uint8_t *line_ptr = src + sy0 * sstride + sx0;
+        for (int y = 0; y < h; y++) {
+            int dy = dy0 + y;
+            const uint8_t *rd_ptr = line_ptr;
+            uint8_t sreg;
+            if (sx0 % 8 != 0) {
+                sreg = *(rd_ptr++);
+                sreg >>= (sx0 % 8);
+            }
+            for (int x = 0; x < w; x++) {
+                int sx = sx0 + x;
+                int dx = dx0 + x;
+                if (sx % 8 == 0) {
+                    sreg = *(rd_ptr++);
+                }
+                if (sreg & 1) {
+                    set_pixel(dx, dy, pen_t::WHITE);
+                }
+                sreg >>= 1;
+            }
+            line_ptr += sstride;
         }
     }
 

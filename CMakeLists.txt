@@ -17,6 +17,7 @@ target_sources(
     pico2_jjy_receiver PRIVATE 
     src/fixed12.cpp
     src/ssd1390spi.cpp
+    src/images/images.cpp
     src/bmpfont/font16.cpp
     src/core0.cpp
     src/core1.cpp

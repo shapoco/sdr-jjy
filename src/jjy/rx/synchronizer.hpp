@@ -32,8 +32,18 @@ class Synchronizer {
 private:
     static constexpr int LOCK_WAIT_TIME_MS = 1024 * 5;
     static constexpr int SCORE_MAX = 10;
+    static constexpr uint32_t BITDET_SREG_INITVAL = 0x55555555;
     static constexpr int BITDET_NUM_SLOTS = 10;
-    static constexpr int BITDET_OK_THRESH = 5;
+    static constexpr int BITDET_OK_THRESH = 10;
+
+    static constexpr int BITDET_QTY_HISTORY_SIZE = 4;
+
+    int32_t bitdet_qty_history[BITDET_QTY_HISTORY_SIZE];
+    int bitdet_qty_history_index = 0;
+
+    uint8_t bitdet_ok_history[BITDET_OK_THRESH];
+    int bitdet_ok_history_index = 0;
+    int bitdet_ok_history_count = 0;
 
 public:
     sync_status_t status;
@@ -49,9 +59,8 @@ public:
     int32_t bitdet_last_slot;
     int bitdet_hi_count = 0;
     int bitdet_lo_count = 0;
-    uint32_t bitdet_sreg = 0;
+    uint32_t bitdet_sreg = BITDET_SREG_INITVAL;
     int bitdet_ok_count = 0;
-    int32_t bitdet_quality_accum = 0;
 
     void init() {
         uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());;
@@ -67,9 +76,19 @@ public:
         bitdet_last_slot = 0;
         bitdet_hi_count = 0;
         bitdet_lo_count = 0;
-        bitdet_sreg = 0;
+        bitdet_sreg = BITDET_SREG_INITVAL;
         bitdet_ok_count = 0;
-        bitdet_quality_accum = 0;
+
+        for (int i = 0; i < BITDET_QTY_HISTORY_SIZE; i++) {
+            bitdet_qty_history[i] = 0;
+        }
+        bitdet_qty_history_index = 0;
+
+        for (int i = 0; i < BITDET_OK_THRESH; i++) {
+            bitdet_ok_history[i] = 0;
+        }
+        bitdet_ok_history_index = 0;
+        bitdet_ok_history_count = 0;
 
         for (int i = 0; i < NUM_PHASE_CANDS; i++) {
             status.phase_cands[i].valid = false;
@@ -165,32 +184,26 @@ public:
         // ビット検出
         int32_t bit_phase = phase_add(phase, -status.phase);
         int32_t slot = bit_phase * BITDET_NUM_SLOTS / PHASE_PERIOD;
-        bool slot_changed = bitdet_last_slot != slot;
+        bool slot_changed = slot != bitdet_last_slot;
+        bool slot_unexp_change = slot_changed && (slot != (bitdet_last_slot + 1) % BITDET_NUM_SLOTS);
         bitdet_last_slot = slot;
-
-        if (!status.phase_locked) {
-            bitdet_hi_count = 0;
-            bitdet_lo_count = 0;
-            bitdet_sreg = 0;
-            bitdet_quality_accum = 0;
-            status.bit_det_quality = 0;
-            status.bit_det_progress = 0;
-            status.bit_det_ok = false;
-            return false;
-        }
 
         bool out_enable = false;
         if (!slot_changed) {
             if (in) bitdet_hi_count += 1;
             else bitdet_lo_count += 1;
         }
+        else if (slot_unexp_change) {
+            bitdet_hi_count = 0;
+            bitdet_lo_count = 0;
+            bitdet_sreg = BITDET_SREG_INITVAL;
+            status.bit_det_quality /= 2;
+        }
         else {
             uint8_t hi = bitdet_hi_count > bitdet_lo_count ? 1 : 0;
             bitdet_sreg <<= 1;
             bitdet_sreg |= hi;
             bitdet_sreg &= (1 << BITDET_NUM_SLOTS) - 1;
-
-            bitdet_quality_accum += (hi ? bitdet_hi_count : bitdet_lo_count) * ONE / (bitdet_hi_count + bitdet_lo_count);
 
             out_enable = (slot == 0);
             jjybit_t out_value;
@@ -201,7 +214,7 @@ public:
                 case 0b1111111100: out_value = jjybit_t::ZERO; break;
                 default: out_value = jjybit_t::ERROR; break;
                 }
-                status.bit_det_quality = bitdet_quality_accum / BITDET_NUM_SLOTS;
+
                 if (out_value == jjybit_t::ERROR) {
                     bitdet_ok_count = 0;
                 } 
@@ -209,12 +222,35 @@ public:
                     bitdet_ok_count = JJY_MIN(BITDET_OK_THRESH, bitdet_ok_count + 1);
                 }
 
+                bitdet_ok_history[bitdet_ok_history_index] = (out_value == jjybit_t::ERROR) ? 0 : 1;
+                bitdet_ok_history_index = (bitdet_ok_history_index + 1) % BITDET_OK_THRESH; 
+                bitdet_ok_history_count = JJY_MIN(BITDET_OK_THRESH, bitdet_ok_history_count + 1);
             }
             *out = out_value;
 
+            if (slot == 0 || slot == 2 || slot == 5 || slot == 8) {
+                bitdet_qty_history[bitdet_qty_history_index] = JJY_ABS(bitdet_hi_count - bitdet_lo_count) * ONE / (bitdet_hi_count + bitdet_lo_count);
+                bitdet_qty_history_index = (bitdet_qty_history_index + 1) % BITDET_QTY_HISTORY_SIZE; 
+
+                int32_t qty_ave = 0;
+                for (int i = 0; i < BITDET_QTY_HISTORY_SIZE; i++) {
+                    qty_ave += bitdet_qty_history[i];
+                }
+                qty_ave /= BITDET_QTY_HISTORY_SIZE;
+                
+                int32_t ok_rate = 0;
+                if (bitdet_ok_history_count > 0) {
+                    for (int i = 0; i < BITDET_OK_THRESH; i++) {
+                        ok_rate += bitdet_ok_history[i];
+                    }
+                    ok_rate = ok_rate * jjy::ONE / bitdet_ok_history_count;
+                }
+
+                status.bit_det_quality = qty_ave * ok_rate / jjy::ONE;
+            }
+
             bitdet_hi_count = 0;
             bitdet_lo_count = 0;
-            bitdet_quality_accum = 0;
         }
 
         status.bit_det_ok = bitdet_ok_count >= BITDET_OK_THRESH;
@@ -228,7 +264,18 @@ public:
             status.bit_det_progress = (((bitdet_ok_count - 1) * PHASE_PERIOD) + bit_phase) / (BITDET_OK_THRESH - 1);
         }
 
-        return out_enable;
+        if (!status.phase_locked) {
+            //bitdet_hi_count = 0;
+            //bitdet_lo_count = 0;
+            //bitdet_sreg = 0;
+            //bitdet_quality_accum = 0;
+            //status.bit_det_quality = 0;
+            bitdet_ok_count = 0;
+            status.bit_det_ok = false;
+            status.bit_det_progress = 0;
+        }
+
+        return status.phase_locked && out_enable;
     }
 
     void add_edge(int32_t phase) {

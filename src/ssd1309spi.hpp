@@ -233,27 +233,42 @@ public:
         }
     }
 
+    void draw_rect(int x, int y, int w, int h, pen_t pen = pen_t::WHITE) {
+        fill_rect(x, y, w + 1, 1);
+        fill_rect(x, y + 1, 1, h - 1);
+        fill_rect(x + w, y + 1, 1, h - 1);
+        fill_rect(x, y + h, w + 1, 1);
+    }
+
     void draw_line(int x0, int y0, int x1, int y1, pen_t pen = pen_t::WHITE) {
-        int dx = x1 - x0;
-        int dy = y1 - y0;
-        int w = dx >= 0 ? dx : -dx;
-        int h = dy >= 0 ? dy : -dy;
-        if (w > h) {
-            int x = x0;
-            int x_step = dx >= 0 ? 1 : -1;
-            for (int i = 0; i < w; i++) {
-                int y = y0 + dy * i / w;
-                set_pixel(x, y, pen);
-                x += x_step;
+        x0 *= fxp12::ONE;
+        y0 *= fxp12::ONE;
+        x1 *= fxp12::ONE;
+        y1 *= fxp12::ONE;
+        draw_line_f(x0, y0, x1, y1, pen);
+    }
+
+    void draw_line_f(int32_t x0f, int32_t y0f, int32_t x1f, int32_t y1f, pen_t pen = pen_t::WHITE) {
+        int32_t dxf = x1f - x0f;
+        int32_t dyf = y1f - y0f;
+        if (FXP_ABS(dxf) > FXP_ABS(dyf)) {
+            int xi = fxp12::to_int(x0f);
+            int n = FXP_ABS(fxp12::to_int(x1f) - xi);
+            int xi_step = dxf >= 0 ? 1 : -1;
+            for (int i = 0; i < n; i++) {
+                int yi = fxp12::to_int(y0f + dyf * i / n);
+                set_pixel(xi, yi, pen);
+                xi += xi_step;
             }
         }
         else {
-            int y = y0;
-            int y_step = dy >= 0 ? 1 : -1;
-            for (int i = 0; i < h; i++) {
-                int x = x0 + dx * i / h;
-                set_pixel(x, y, pen);
-                y += y_step;
+            int yi = fxp12::to_int(y0f);
+            int n = FXP_ABS(fxp12::to_int(y1f) - yi);
+            int yi_step = dyf >= 0 ? 1 : -1;
+            for (int i = 0; i < n; i++) {
+                int xi = fxp12::to_int(x0f + dxf * i / n);
+                set_pixel(xi, yi, pen);
+                yi += yi_step;
             }
         }
     }

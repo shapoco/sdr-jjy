@@ -16,237 +16,344 @@ static constexpr uint32_t DET_SPS = DET_RESO * 60000;
 
 typedef struct {
 public:
-    uint32_t adc_offset;
-    uint32_t agc_amp_raw;
-    uint32_t adc_level;
+    int32_t agc_gain;
+
+    int32_t adc_amplitude_raw;
+    int32_t adc_amplitude_peak;
     int32_t adc_min;
     int32_t adc_max;
-    uint32_t det_level_raw;
-    uint8_t raw_signal;
-    uint8_t stabilized_signal;
-    uint32_t quarity_raw;
+    uint8_t hyst_dig_out;
+    uint8_t digital_out;
+    int32_t quarity;
 
-    uint32_t det_threshold;
-    uint32_t det_signal_base;
-    uint32_t det_signal_peak;
+    int32_t det_anl_out_raw;
+    int32_t det_anl_out_norm;
 
-    const float det_level() const { return (float)det_level_raw / (1 << PREC); }
-    const float signal_level() const { return (float)(det_level_raw - det_signal_base) / (det_signal_peak - det_signal_base); }
-    const float agc_amp() const { return (float)agc_amp_raw / (1 << PREC); }
-    const float quarity() const { return (float)quarity_raw / (1 << PREC); }
+    int32_t det_anl_out_base;
+    int32_t det_anl_out_peak;
+
+    void init() {
+        agc_gain = 0;
+        adc_amplitude_raw = 0;
+        adc_amplitude_peak = 0;
+        adc_min = 0;
+        adc_max = 0;
+        hyst_dig_out = 0;
+        det_anl_out_raw = 0;
+        digital_out = 0;
+        quarity = 0;
+        det_anl_out_base = 0;
+        det_anl_out_peak = 0;
+        det_anl_out_norm = 0;
+    }
 } rf_status_t;
 
-class Rf {
+class Agc {
 public:
-    static constexpr int32_t ADC_SIGNED_MAX = (1 << (PREC - 1)) - 1;
-    static constexpr int32_t ADC_SIGNED_MIN = -(1 << (PREC - 1));
+    static constexpr int32_t AMPLITUDE_MAX = (1 << (PREC - 1)) - 1;
+    static constexpr int32_t AMPLITUDE_MIN = -(1 << (PREC - 1));
+    static constexpr int HISTORY_SIZE = 20;
+    static constexpr uint32_t HISTORY_STEP_MS = 1000 / HISTORY_SIZE;
+    static constexpr int32_t GAIN_MIN = 1 << (PREC - 2);
+    static constexpr int32_t GAIN_MAX = 64 << PREC;
+    static constexpr int32_t GOAL_AMPLITUDE = ONE / (1 << 3);
 
-    static constexpr uint32_t AGC_HIST_DEPTH = 20;
-    static constexpr uint32_t AGC_HIST_STEP_MS = 1000 / AGC_HIST_DEPTH;
-
-    static constexpr uint32_t AGC_AMP_MIN = 1 << (PREC - 2);
-    static constexpr uint32_t AGC_AMP_MAX = 1000 << PREC;
-
-    static constexpr uint32_t DET_HYST_RATIO = (1 << PREC) * 1 / 20;
-
-    static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
-    static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
-
-    static constexpr int DET_RESO_60KHZ = DET_RESO;
-    static constexpr int DET_RESO_40KHZ = DET_RESO * 3 / 2;
-    static constexpr uint32_t DET_PERIOD = lcm(DET_RESO_60KHZ, DET_RESO_40KHZ);
+    int32_t offset;
+    int32_t adc_amplitude_raw;
+    int32_t adc_amplitude_peak;
+    int32_t gain;
 
 private:
-    freq_t freq = freq_t::EAST_40KHZ;
-
-    int32_t sin_table_40kHz[DET_PERIOD];
-    int32_t sin_table_60kHz[DET_PERIOD];
-
-    int phase;
-    uint32_t accum_adc_level;
-    uint32_t accum_det_base;
-    uint32_t accum_det_peak;
-
+    uint32_t t_next_upd_ms;
+    int32_t amp_history[HISTORY_SIZE];
+    int32_t amp_peak;
     int history_index = 0;
-    uint32_t history_adc_level[AGC_HIST_DEPTH];
-    uint32_t history_det_base[AGC_HIST_DEPTH];
-    uint32_t history_det_peak[AGC_HIST_DEPTH];
-
-    uint32_t threshold;
-    uint32_t hysteresis;
-    uint8_t anti_chat_sreg;
-    uint8_t stabilized_signal;
-
-    uint32_t t_one_limit_ms;
-    uint32_t t_next_agc_upd_ms;
-
-    rf_status_t status;
 
 public:
-    Rf() {
-        // sinテーブル
-        for (int i = 0; i < DET_PERIOD; i++) {
-            sin_table_40kHz[i] = round(sin(i * 2 * M_PI / DET_RESO_40KHZ) * (1 << (PREC - 1)));
+    void init() {
+        offset = ONE / 2;
+        gain = ONE;
+        amp_peak = GOAL_AMPLITUDE;
+        for (int i = 0; i < HISTORY_SIZE; i++) {
+            amp_history[i] = GOAL_AMPLITUDE;
         }
-        for (int i = 0; i < DET_PERIOD; i++) {
-            sin_table_60kHz[i] = round(sin(i * 2 * M_PI / DET_RESO_60KHZ) * (1 << (PREC - 1)));
+        history_index = 0;
+        uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
+        t_next_upd_ms = t_now_ms + 1000;
+        adc_amplitude_peak = GOAL_AMPLITUDE;
+        adc_amplitude_raw = GOAL_AMPLITUDE;
+    }
+
+    void process(const uint32_t t_now_ms, const uint16_t *in_buff, int32_t *out_buff, const uint32_t size) {
+        int32_t in_sum = 0;
+        int32_t amp_sum = 0;
+        for (int i = 0; i < size; i++) {
+            int32_t in = in_buff[i];
+            in_sum += in;
+
+            // オフセットの減算
+            int32_t out = in - offset;
+
+            // AGC
+            amp_sum += JJY_ABS(out);
+            out_buff[i] = JJY_CLIP(AMPLITUDE_MIN, AMPLITUDE_MAX, out * gain / ONE);
+        }
+
+        // オフセットの再計算
+        offset = in_sum / size;
+
+        // ADC 振幅計算
+        adc_amplitude_raw = amp_sum / size;
+        amp_peak = JJY_MAX(amp_peak, adc_amplitude_raw);
+        
+        if (t_now_ms >= t_next_upd_ms) {
+            t_next_upd_ms += HISTORY_STEP_MS;
+            update_gain();
+        }
+    }
+
+    void update_gain() {
+        amp_history[history_index] = amp_peak;
+        if (history_index < HISTORY_SIZE - 1) {
+            history_index++;
+        }
+        else {
+            history_index = 0;
+        }
+        amp_peak = 0;
+        
+        adc_amplitude_peak = 0;
+        for (int i = 0; i < HISTORY_SIZE; i++) {
+            adc_amplitude_peak = JJY_MAX(adc_amplitude_peak, amp_history[i]);
+        }
+
+        // AGC ゲイン更新
+        int32_t goal_gain = GOAL_AMPLITUDE * ONE / adc_amplitude_peak;
+        gain += (goal_gain - gain) / (1 << 4);
+        gain = JJY_CLIP(GAIN_MIN, GAIN_MAX, gain);
+    }
+    
+};
+
+class QuadDetector {
+public:
+    static constexpr int RESO_60KHZ = DET_RESO;
+    static constexpr int RESO_40KHZ = DET_RESO * 3 / 2;
+    static constexpr int PERIOD = lcm(RESO_60KHZ, RESO_40KHZ);
+
+    freq_t freq = freq_t::EAST_40KHZ;
+
+private:
+    int32_t sin_table_40kHz[PERIOD];
+    int32_t sin_table_60kHz[PERIOD];
+    int phase;
+
+public:
+    QuadDetector() {
+        // sinテーブル
+        for (int i = 0; i < PERIOD; i++) {
+            sin_table_40kHz[i] = round(sin(i * 2 * M_PI / RESO_40KHZ) * (1 << (PREC - 1)));
+        }
+        for (int i = 0; i < PERIOD; i++) {
+            sin_table_60kHz[i] = round(sin(i * 2 * M_PI / RESO_60KHZ) * (1 << (PREC - 1)));
         }
     }
 
     void init(freq_t freq) {
         this->freq = freq;
-
         phase = 0;
-        history_index = 0;
-        memset(history_adc_level, 0, sizeof(uint32_t) * AGC_HIST_DEPTH);
-        memset(history_det_base, 0, sizeof(uint32_t) * AGC_HIST_DEPTH);
-        memset(history_det_peak, 0, sizeof(uint32_t) * AGC_HIST_DEPTH);
-        accum_adc_level = 0;
-        accum_det_base = 0x7fffffff;
-        accum_det_peak = 0;
-        threshold = 1 << (PREC - 1);
-        hysteresis = (threshold * DET_HYST_RATIO) >> PREC;
-        anti_chat_sreg = 0;
-        stabilized_signal = 0;
-
-        status.adc_offset = (1 << PREC) / 2;
-        status.agc_amp_raw = 0;
-        status.adc_level = 0;
-        status.det_level_raw = 0;
-        status.raw_signal = 0;
-        status.stabilized_signal = 0;
-        status.det_signal_base = 0;
-        status.det_signal_peak = 0;
-        
-        uint64_t t_now_ms = to_ms_since_boot(get_absolute_time());
-        t_next_agc_upd_ms = t_now_ms + 1000;
-        t_one_limit_ms = t_now_ms;
     }
 
-    uint8_t detect(const uint32_t t_now_ms, const uint16_t *samples, const uint32_t size) {
-        uint32_t tmp_adc_accum = 0;
-        uint32_t tmp_abs_accum = 0;
-        uint32_t tmp_det_accum = 0;
-        int32_t tmp_adc_min = (1 << (PREC * 2));
-        int32_t tmp_adc_max = -(1 << (PREC * 2));
+    int32_t process(uint32_t t_now_ms, const int32_t *in, int size) {
+        int32_t sum = 0;
         for (int i = 0; i < size; i++) {
-            uint16_t adc_raw = samples[i];
-            tmp_adc_accum += adc_raw;
-
-            // オフセットの減算
-            int32_t adc_signed = (int32_t)adc_raw - (int32_t)status.adc_offset;
-            tmp_adc_min = JJY_MIN(tmp_adc_min, adc_signed);
-            tmp_adc_max = JJY_MAX(tmp_adc_max, adc_signed);
-
-            // AGC
-            tmp_abs_accum += JJY_ABS(adc_signed);
-            adc_signed = (adc_signed * (int32_t)status.agc_amp_raw) / (1 << PREC);
-            adc_signed = JJY_CLIP(ADC_SIGNED_MIN, ADC_SIGNED_MAX, adc_signed);
-
-            // 直交検波
             int32_t sin, cos;
             if (freq == freq_t::EAST_40KHZ) {
                 sin = sin_table_40kHz[phase];
-                cos = sin_table_40kHz[(phase + DET_RESO_40KHZ / 4) % DET_RESO_40KHZ];
+                cos = sin_table_40kHz[(phase + RESO_40KHZ / 4) % RESO_40KHZ];
             }
             else {
                 sin = sin_table_60kHz[phase];
-                cos = sin_table_60kHz[(phase + DET_RESO_60KHZ / 4) % DET_RESO_60KHZ];
+                cos = sin_table_60kHz[(phase + RESO_60KHZ / 4) % RESO_60KHZ];
             }
-            int32_t u = (sin * adc_signed) >> PREC;
-            int32_t v = (cos * adc_signed) >> PREC;
-            tmp_det_accum += (uint32_t)fast_sqrt(u * u + v * v);
+            int32_t u = (sin * in[i]) >> PREC;
+            int32_t v = (cos * in[i]) >> PREC;
+            sum += (uint32_t)fast_sqrt(u * u + v * v);
             phase = (phase + 1) % DET_RESO;
         }
+        return sum / size;
+    }
+};
 
-        // 振幅
-        status.adc_min = tmp_adc_min;
-        status.adc_max = tmp_adc_max;
+class Binarizer {
+public:
+    static constexpr int HISTORY_SIZE = 20;
+    static constexpr uint32_t HISTORY_STEP_MS = 1000 / HISTORY_SIZE;
 
-        // オフセットの再計算
-        status.adc_offset = tmp_adc_accum / size;
+    static constexpr int32_t HYSTERESIS_RATIO = ONE / 20;
 
-        // ADC 振幅計算
-        accum_adc_level = JJY_MAX(accum_adc_level, tmp_abs_accum / size);
+    static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
+    static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
 
-        // 直交検波後の信号レベル
-        status.det_level_raw = tmp_det_accum / size;
-        accum_det_base = JJY_MIN(accum_det_base, status.det_level_raw);
-        accum_det_peak = JJY_MAX(accum_det_peak, status.det_level_raw);
+    int32_t thresh;
+    int32_t hysteresis;
+    uint8_t anti_chat_sreg;
 
+    uint8_t anti_chat_out;
+    uint8_t pulse_width_limited_out;
+    uint8_t hyst_out;
+
+    int32_t det_base;
+    int32_t det_peak;
+    
+private:
+    int32_t accum_base;
+    int32_t accum_peak;
+    int32_t base_history[HISTORY_SIZE];
+    int32_t peak_history[HISTORY_SIZE];
+    int history_index = 0;
+
+    uint32_t t_next_thresh_upd_ms;
+    uint32_t t_hi_expire_ms;
+
+public:
+
+    void init(void) {
+        for (int i = 0; i < HISTORY_SIZE; i++) {
+            base_history[i] = ONE / 2;
+            peak_history[i] = ONE / 2;
+        }
+        history_index = 0;
+
+        hysteresis = thresh * HYSTERESIS_RATIO / ONE;
+        thresh = ONE / 2;
+        hyst_out = 0;
+
+        accum_base = ONE / 2;
+        accum_peak = ONE / 2;
+
+        anti_chat_sreg = 0;
+        anti_chat_out = 0;
+        pulse_width_limited_out = 0;
+
+        uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
+        t_next_thresh_upd_ms = t_now_ms + 1000;
+        t_hi_expire_ms = t_now_ms;
+    }
+
+    uint8_t process(uint32_t t_now_ms, int32_t in) {
+        accum_base = JJY_MIN(accum_base, in);
+        accum_peak = JJY_MAX(accum_peak, in);
+        
         // ヒステリシス
-        const uint32_t biased_thresh =
-            (anti_chat_sreg & 1) ? threshold - hysteresis : threshold + hysteresis;
-        status.raw_signal = (status.det_level_raw >= biased_thresh) ? 1 : 0;
+        int32_t biased_thresh = (anti_chat_sreg & 1) ? thresh - hysteresis : thresh + hysteresis;
+        hyst_out = (in >= biased_thresh) ? 1 : 0;
 
         // チャタリング除去
         anti_chat_sreg = (anti_chat_sreg << 1) & ((1 << ANTI_CHAT_CYCLES) - 1);
-        if (status.raw_signal) anti_chat_sreg |= 1;
+        anti_chat_sreg |= hyst_out;
         if (anti_chat_sreg == 0) {
-            stabilized_signal = 0;
+            anti_chat_out = 0;
         }
         else if (anti_chat_sreg == ((1 << ANTI_CHAT_CYCLES) - 1)) {
-            stabilized_signal = 1;
+            anti_chat_out = 1;
         }
 
         // パルス幅制限
-        if (!stabilized_signal) {
-            status.stabilized_signal = 0;
-            t_one_limit_ms = t_now_ms + PULSE_WIDTH_LIMIT_MS;
+        if (!anti_chat_out) {
+            pulse_width_limited_out = 0;
+            t_hi_expire_ms = t_now_ms + PULSE_WIDTH_LIMIT_MS;
         }
-        else if (t_now_ms < t_one_limit_ms) {
-            status.stabilized_signal = 1;
+        else if (t_now_ms < t_hi_expire_ms) {
+            pulse_width_limited_out = 1;
         }
         else {
-            status.stabilized_signal = 0;
+            pulse_width_limited_out = 0;
         }
 
-        if (t_now_ms >= t_next_agc_upd_ms) {
-            t_next_agc_upd_ms += AGC_HIST_STEP_MS;
-
-            // AGC用信号レベル履歴の更新
-            history_adc_level[history_index] = accum_adc_level;
-            history_det_base[history_index] = accum_det_base;
-            history_det_peak[history_index] = accum_det_peak;
-            if (history_index < AGC_HIST_DEPTH - 1) {
-                history_index++;
-            }
-            else {
-                history_index = 0;
-            }
-            accum_adc_level = 0;
-            accum_det_base = 0x7fffffff;
-            accum_det_peak = 0;
-
-            // レベルのピーク値を取得
-            uint32_t adc_level = 0;
-            uint32_t det_base = 0x7fffffff;
-            uint32_t det_peak = 0;
-            for (int i = 0; i < AGC_HIST_DEPTH; i++) {
-                adc_level = JJY_MAX(adc_level, history_adc_level[i]);
-                det_base = JJY_MIN(det_base, history_det_base[i]);
-                det_peak = JJY_MAX(det_peak, history_det_peak[i]);
-            }
-
-            // AGC ゲイン更新
-            constexpr int GOAL_LEVEL = 1 << (PREC - 3);
-            int32_t amp_goal = (GOAL_LEVEL << PREC) / adc_level;
-            status.agc_amp_raw += (amp_goal - (int32_t)status.agc_amp_raw) / (1 << 4);
-            status.agc_amp_raw = JJY_CLIP(AGC_AMP_MIN, AGC_AMP_MAX, status.agc_amp_raw);
-
-            // スレッショルド更新
-            threshold = det_base + (det_peak - det_base) / 2;
-            hysteresis = ((det_peak - det_base) * DET_HYST_RATIO) >> PREC;
-
-            // ステータス値更新
-            status.adc_level = adc_level;
-            status.det_threshold = threshold;
-            status.det_signal_base = det_base;
-            status.det_signal_peak = det_peak;
-            status.quarity_raw = ((det_peak - det_base) << PREC) / det_peak;
+        // スレッショルド更新
+        if (t_now_ms >= t_next_thresh_upd_ms) {
+            t_next_thresh_upd_ms += HISTORY_STEP_MS;
+            update_thresh();
         }
 
-        return status.stabilized_signal;
+        return pulse_width_limited_out;
+    }
+
+    void update_thresh() {
+        base_history[history_index] = accum_base;
+        peak_history[history_index] = accum_peak;
+        if (history_index < HISTORY_SIZE - 1) {
+            history_index++;
+        }
+        else {
+            history_index = 0;
+        }
+        accum_base = 0x7fffffff;
+        accum_peak = 0;
+
+        // レベルのピーク値を取得
+        det_base = 0x7fffffff;
+        det_peak = 0;
+        for (int i = 0; i < HISTORY_SIZE; i++) {
+            det_base = JJY_MIN(det_base, base_history[i]);
+            det_peak = JJY_MAX(det_peak, peak_history[i]);
+        }
+
+        // スレッショルド更新
+        thresh = det_base + (det_peak - det_base) / 2;
+        hysteresis = ((det_peak - det_base) * HYSTERESIS_RATIO) >> PREC;
+
+    }
+};
+
+class Rf {
+public:
+    Agc agc;
+    QuadDetector det;
+    Binarizer bin;
+
+private:
+    rf_status_t status;
+    int32_t *agc_out = nullptr;
+    int agc_out_size = 0;
+
+public:
+    void init(freq_t freq) {
+        agc.init();
+        det.init(freq);
+        bin.init();
+        status.init();
+    }
+
+    uint8_t detect(const uint32_t t_now_ms, const uint16_t *samples, const uint32_t size) {
+        if (!agc_out || agc_out_size < size) {
+            if (agc_out) delete[] agc_out;
+            agc_out = new int32_t[size];
+        }
+
+        // AGC
+        agc.process(t_now_ms, samples, agc_out, size);
+
+        // 直交検波
+        int32_t det_anl_out_raw = det.process(t_now_ms, agc_out, size);
+
+        // フィルター
+        uint8_t out = bin.process(t_now_ms, det_anl_out_raw);
+
+        // ステータス値更新
+        status.adc_amplitude_raw = agc.adc_amplitude_raw;
+        status.adc_amplitude_peak = agc.adc_amplitude_peak;
+        status.agc_gain = agc.gain;
+        status.det_anl_out_raw = det_anl_out_raw;
+        status.det_anl_out_base = bin.det_base;
+        status.det_anl_out_peak = bin.det_peak;
+        status.det_anl_out_norm = (det_anl_out_raw - bin.det_base) * ONE / (bin.det_peak - bin.det_base);
+        status.hyst_dig_out = bin.hyst_out;
+        status.quarity = ((bin.det_peak - bin.det_base) * ONE) / bin.det_peak;
+        status.digital_out = out;
+
+        return out;
     }
 
     /// @brief 検波器の状態を取得

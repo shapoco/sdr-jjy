@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
-extern const uint8_t bmp_bit_icons[];
+extern uint8_t bmp_bit_icons[];
+extern uint8_t bmp_meter_frame[];
 
 #endif

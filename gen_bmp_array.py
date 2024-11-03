@@ -20,7 +20,7 @@ img_pixels = np.array([[img.getpixel((x,y)) for x in range(width)] for y in rang
 
 with open(args.outcpp, 'a') as f:
     f.write('\n')
-    f.write(f'const uint8_t {args.name}[] = {{\n')
+    f.write(f'uint8_t {args.name}[] = {{\n')
     f.write('    %d, %d, %d, %d,\n' % (width % 256, width // 256, height % 256, height // 256))
     index = 0
     stride = (width + 7) // 8
@@ -43,4 +43,4 @@ with open(args.outcpp, 'a') as f:
     f.write('};\n')
 
 with open(args.outhpp, 'a') as f:
-    f.write(f'extern const uint8_t {args.name}[];\n')
+    f.write(f'extern uint8_t {args.name}[];\n')

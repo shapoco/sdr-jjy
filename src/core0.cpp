@@ -111,17 +111,19 @@ int main() {
         glb_receiver_status.store(sts);
 
         // Output
-        gpio_put(PIN_LED_OUT, sts.rf.raw_signal);
-        gpio_put(PIN_LAMP_OUT, !sts.rf.stabilized_signal);
-        pwm_set_gpio_level(PIN_SPEAKER_OUT, sts.rf.stabilized_signal ? SPEAKER_PWM_PERIOD / 2 : 0);
+        gpio_put(PIN_LED_OUT, sts.rf.hyst_dig_out);
+        gpio_put(PIN_LAMP_OUT, !sts.rf.digital_out);
+        pwm_set_gpio_level(PIN_SPEAKER_OUT, sts.rf.digital_out ? SPEAKER_PWM_PERIOD / 2 : 0);
 
         if (t_now_ms >= t_next_print_ms) {
             t_next_print_ms += 1000;
 
 #if ENABLE_STDOUT
             float core0usage = (float)(100 * t_calc_us) / (t_calc_us + t_dma_us);
+            float gain = (float)sts.rf.agc_gain / (1 << jjy::PREC);
+            float qty = (float)sts.rf.quarity / (1 << jjy::PREC);
             printf("AdcLv:%3d, AGC:%6.2f, Base/Peak:%4d/%4d, Qty:%4.2f, Core0Usage:%6.2f%%\n",
-                (int)sts.rf.adc_level, sts.rf.agc_amp(), (int)sts.rf.det_signal_base, (int)sts.rf.det_signal_peak, sts.rf.quarity(), core0usage);
+                (int)sts.rf.adc_amplitude_peak, gain, (int)sts.rf.det_anl_out_base, (int)sts.rf.det_anl_out_peak, qty, core0usage);
 #endif
 
             t_calc_us = 0;

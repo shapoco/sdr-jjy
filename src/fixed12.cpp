@@ -37,4 +37,28 @@ int32_t cos(int32_t a) {
     return cos_table[normalize_angle(a)];
 }
 
+int32_t log2(int32_t x) {
+    if (x <= 1) return 0x80000000;
+
+    uint32_t tmp = x;
+    int32_t ret = 0;
+    if (tmp > ONE * 2) {
+        do { tmp /= 2; ret += 1; } while (tmp > ONE * 2);
+    }
+    else if (tmp < ONE) {
+        do { tmp *= 2; ret -= 1; } while (tmp < ONE);
+    }
+
+    for (int i = 0; i < PREC; i++) {
+        tmp = tmp * tmp / ONE;
+        ret *= 2;
+        if (tmp >= 2 * ONE) {
+            ret += 1;
+            tmp /= 2;
+        }
+    }
+
+    return ret;
+}
+
 }

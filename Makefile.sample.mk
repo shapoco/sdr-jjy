@@ -1,14 +1,14 @@
 .PHONY: all images bmpfont install launch-openocd clean distclean
 
-REPO_DIR=$(shell pwd)
-SRC_DIR=.
-BUILD_DIR=build
+REPO_DIR = $(shell pwd)
+SRC_DIR = .
+BUILD_DIR = build
 
-BIN_NAME=pico2_jjy_receiver.uf2
-BIN=$(BUILD_DIR)/$(BIN_NAME)
+BIN_NAME = pico2_jjy_receiver.uf2
+BIN = $(BUILD_DIR)/$(BIN_NAME)
 
-CORE_DIR=../../core
-FATFS_DIR=../fatfs/source
+CORE_DIR = ../../core
+FATFS_DIR = ../fatfs/source
 
 IMAGES_CPP = src/images/images.cpp
 IMAGES_HPP = src/images/images.hpp
@@ -17,6 +17,7 @@ IMAGES_SRC_LIST = \
 	$(wildcard src/meter.png)
 IMAGES_CPP_GEN_CMD = ./gen_bmp_array.py
 
+FONT5_NAME = font5
 FONT16_NAME = font16
 
 FONT_INC_DIR = bmpfont
@@ -26,9 +27,11 @@ FONT_BMP_DIR = bmp
 FONT_CPP_GEN_CMD = ./gen_font_array.py
 
 FONT_HPP_LIST = \
+	$(FONT_SRC_DIR)/$(FONT5_NAME).hpp \
 	$(FONT_SRC_DIR)/$(FONT16_NAME).hpp
 
 FONT_CPP_LIST = \
+	$(FONT_SRC_DIR)/$(FONT5_NAME).cpp \
 	$(FONT_SRC_DIR)/$(FONT16_NAME).cpp
 
 SRC_LIST=\
@@ -67,6 +70,15 @@ $(IMAGES_CPP): $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
 	@echo >> $(IMAGES_HPP)
 	@echo "#endif" >> $(IMAGES_HPP)
 
+$(FONT_SRC_DIR)/$(FONT5_NAME).hpp : $(FONT_SRC_DIR)/$(FONT5_NAME).cpp $(FONT_BMP_DIR)/$(FONT5_NAME).png
+$(FONT_SRC_DIR)/$(FONT5_NAME).cpp : $(FONT_BMP_DIR)/$(FONT5_NAME).png $(FONT_CPP_GEN_CMD)
+	$(FONT_CPP_GEN_CMD) \
+		--src $< \
+		--name $(FONT5_NAME) \
+		--outdir $(FONT_SRC_DIR) \
+		--incdir $(FONT_INC_DIR) \
+		--code-offset 32
+
 $(FONT_SRC_DIR)/$(FONT16_NAME).hpp : $(FONT_SRC_DIR)/$(FONT16_NAME).cpp $(FONT_BMP_DIR)/$(FONT16_NAME).png
 $(FONT_SRC_DIR)/$(FONT16_NAME).cpp : $(FONT_BMP_DIR)/$(FONT16_NAME).png $(FONT_CPP_GEN_CMD)
 	$(FONT_CPP_GEN_CMD) \
@@ -74,7 +86,6 @@ $(FONT_SRC_DIR)/$(FONT16_NAME).cpp : $(FONT_BMP_DIR)/$(FONT16_NAME).png $(FONT_C
 		--name $(FONT16_NAME) \
 		--outdir $(FONT_SRC_DIR) \
 		--incdir $(FONT_INC_DIR) \
-		--height 16 \
 		--code-offset 32
 
 install: $(BIN)

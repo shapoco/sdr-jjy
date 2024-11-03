@@ -1,3 +1,6 @@
+#include <stdint.h>
+#include <stdio.h>
+
 #include "hardware/gpio.h"
 #include "pico/stdlib.h"
 
@@ -17,9 +20,12 @@
 #include "meter.hpp"
 #include "rader.hpp"
 
+#include "lazy_timer.hpp"
 
 extern atomic<receiver_status_t> glb_receiver_status;
 static receiver_status_t sts;
+
+static constexpr int FPS = 50;
 
 static JjyLcd lcd;
 using pen_t = ssd1309spi::pen_t;
@@ -28,9 +34,6 @@ static Rader rader;
 static Meter amp_meter;
 static Meter qty_meter;
 
-static void render_guages(uint32_t t_now_ms);
-static void render_guage(int x, int y, int w, int h, int val);
-static void render_meter(int x, int y, int32_t val);
 static void render_sync_status(uint32_t t_now_ms);
 
 void core1_init() {
@@ -38,25 +41,28 @@ void core1_init() {
 }
 
 void core1_main() {
-    uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
-    uint32_t t_next_paint_ms = t_now_ms;
-    uint32_t t_next_sync_ms = t_now_ms;
+    LazyTimer<uint32_t> waveform_update_timer(5);
+    LazyTimer<uint32_t> render_timer(20);
+
     int32_t gain_meter_scale = fxp12::ONE;
     int32_t qty_meter_curr = 0;
+
+    {
+        uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
+        render_timer.start(t_now_ms);
+    }
 
     sts = glb_receiver_status.load();
 
     while (true) {
         uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
 
-        if (t_now_ms >= t_next_sync_ms) {
-            t_next_sync_ms = t_now_ms + 5;
+        if (waveform_update_timer.is_expired(t_now_ms)) {
             sts = glb_receiver_status.load();
             rader.update(t_now_ms, sts);
         }
 
-        if (t_now_ms >= t_next_paint_ms) {
-            t_next_paint_ms = t_now_ms + 20;
+        if (render_timer.is_expired(t_now_ms)) {
 
             lcd.clear();
             //render_guages(t_now_ms);
@@ -68,15 +74,30 @@ void core1_main() {
                     gain_meter_scale /= 2;
                 }
 
-                //int32_t val = sts.rf.adc_amplitude_raw * fxp12::ONE / jjy::rx::Agc::GOAL_AMPLITUDE;
-                int32_t val = sts.rf.adc_amplitude_raw * gain_meter_scale / jjy::rx::Agc::GOAL_AMPLITUDE * 3 / 4;
+                int32_t val = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc::GOAL_AMPLITUDE * 3 / 2);
                 amp_meter.render(t_now_ms, 0, 0, lcd, val);
+
+                lcd.fill_rect(7, 8, 17, 6, pen_t::BLACK);
+                lcd.draw_string(bmpfont::font5, 8, 9, "AMP");
+
+                char s[16];
+                if (gain_meter_scale >= jjy::ONE) {
+                    sprintf(s, "x%1d", gain_meter_scale / jjy::ONE);
+                }
+                else {
+                    sprintf(s, "/%1d", jjy::ONE / gain_meter_scale);
+                }
+                lcd.fill_rect(23, 0, 9, 6, pen_t::BLACK);
+                lcd.draw_string(bmpfont::font5, 24, 0, s);
             }
 
             {
                 int32_t diff = (sts.sync.bit_det_quality - qty_meter_curr) / (1 << 3);
                 qty_meter_curr += diff;
                 qty_meter.render(t_now_ms, 0, 16, lcd, qty_meter_curr);
+
+                lcd.fill_rect(7, 24, 17, 6, pen_t::BLACK);
+                lcd.draw_string(bmpfont::font5, 8, 25, "QTY");
             }
 
             rader.render(t_now_ms, 32 + Rader::RADIUS, Rader::RADIUS, lcd, sts);
@@ -86,31 +107,6 @@ void core1_main() {
 
         lcd.service();
     }
-}
-
-static void render_guages(uint32_t t_now_ms) {
-    int x = 0, y = 0;
-    int w = Rader::DIAMETER - 2, h = 5;
-    int w_inner = w - 2;
-    {
-        int max = fxp12::log2(jjy::rx::Agc::GAIN_MAX);
-        int val = fxp12::log2(sts.rf.adc_amplitude_raw * fxp12::ONE) * w_inner / max / 2;
-        render_guage(x, y, w - 1, h - 1, val);
-        y += h + 1;
-    }
-}
-
-static void render_guage(int x, int y, int w, int h, int val) {
-    lcd.draw_rect(x, y, w, h);
-    lcd.fill_rect(x + 1, y + 1, FXP_CLIP(0, w - 1, val), h - 1);
-}
-
-static void render_meters(uint32_t t_now_ms) {
-
-}
-
-static void render_meter(int x, int y, int32_t val) {
-
 }
 
 static void render_sync_status(uint32_t t_now_ms) {

@@ -9,6 +9,8 @@
 
 #include "jjy/common.hpp"
 
+#include "lazy_timer.hpp"
+
 namespace jjy::rx {
 
 static constexpr uint32_t DET_RESO = 1 << 3;   
@@ -64,12 +66,14 @@ public:
     int32_t gain;
 
 private:
-    uint32_t t_next_upd_ms;
+    LazyTimer<uint32_t> gain_update_timer;
     int32_t amp_history[HISTORY_SIZE];
     int32_t amp_peak;
     int history_index = 0;
 
 public:
+    Agc() : gain_update_timer(HISTORY_STEP_MS) { }
+
     void init() {
         offset = ONE / 2;
         gain = ONE;
@@ -78,8 +82,7 @@ public:
             amp_history[i] = GOAL_AMPLITUDE;
         }
         history_index = 0;
-        uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
-        t_next_upd_ms = t_now_ms + 1000;
+        gain_update_timer.start(to_ms_since_boot(get_absolute_time()));
         adc_amplitude_peak = GOAL_AMPLITUDE;
         adc_amplitude_raw = GOAL_AMPLITUDE;
     }
@@ -106,8 +109,7 @@ public:
         adc_amplitude_raw = amp_sum / size;
         amp_peak = JJY_MAX(amp_peak, adc_amplitude_raw);
         
-        if (t_now_ms >= t_next_upd_ms) {
-            t_next_upd_ms += HISTORY_STEP_MS;
+        if (gain_update_timer.is_expired(t_now_ms)) {
             update_gain();
         }
     }
@@ -190,7 +192,7 @@ public:
     static constexpr int HISTORY_SIZE = 20;
     static constexpr uint32_t HISTORY_STEP_MS = 1000 / HISTORY_SIZE;
 
-    static constexpr int32_t HYSTERESIS_RATIO = ONE / 20;
+    static constexpr int32_t HYSTERESIS_RATIO = ONE / 10;
 
     static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
     static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
@@ -213,10 +215,12 @@ private:
     int32_t peak_history[HISTORY_SIZE];
     int history_index = 0;
 
-    uint32_t t_next_thresh_upd_ms;
-    uint32_t t_hi_expire_ms;
+    LazyTimer<uint32_t> thresh_update_timer;
+    LazyTimer<uint32_t, false> pulse_width_limit_timer;
 
 public:
+
+    Binarizer() : thresh_update_timer(HISTORY_STEP_MS), pulse_width_limit_timer(PULSE_WIDTH_LIMIT_MS) { }
 
     void init(void) {
         for (int i = 0; i < HISTORY_SIZE; i++) {
@@ -237,8 +241,8 @@ public:
         pulse_width_limited_out = 0;
 
         uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
-        t_next_thresh_upd_ms = t_now_ms + 1000;
-        t_hi_expire_ms = t_now_ms;
+        thresh_update_timer.start(t_now_ms);
+        pulse_width_limit_timer.start(t_now_ms, PULSE_WIDTH_LIMIT_MS);
     }
 
     uint8_t process(uint32_t t_now_ms, int32_t in) {
@@ -262,18 +266,17 @@ public:
         // パルス幅制限
         if (!anti_chat_out) {
             pulse_width_limited_out = 0;
-            t_hi_expire_ms = t_now_ms + PULSE_WIDTH_LIMIT_MS;
+            pulse_width_limit_timer.start(t_now_ms);
         }
-        else if (t_now_ms < t_hi_expire_ms) {
-            pulse_width_limited_out = 1;
+        else if (pulse_width_limit_timer.is_expired(t_now_ms)) {
+            pulse_width_limited_out = 0;
         }
         else {
-            pulse_width_limited_out = 0;
+            pulse_width_limited_out = 1;
         }
 
         // スレッショルド更新
-        if (t_now_ms >= t_next_thresh_upd_ms) {
-            t_next_thresh_upd_ms += HISTORY_STEP_MS;
+        if (thresh_update_timer.is_expired(t_now_ms)) {
             update_thresh();
         }
 

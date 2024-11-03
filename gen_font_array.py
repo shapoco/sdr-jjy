@@ -12,13 +12,10 @@ parser.add_argument('-s', '--src', required=True)
 parser.add_argument('-n', '--name', required=True)
 parser.add_argument('-o', '--outdir', required=True)
 parser.add_argument('-i', '--incdir', required=True)
-parser.add_argument('-t', '--height', type=int, required=True)
+parser.add_argument('-t', '--height', type=int, default=-1)
 parser.add_argument('-c', '--code-offset', type=int, required=True)
 parser.add_argument('--spacing', type=int, default=-1)
 args = parser.parse_args()
-
-if args.spacing < 0:
-    args.spacing = (args.height + 7) // 8
 
 img = Image.open(args.src)
 width, height = img.size
@@ -37,7 +34,7 @@ class CharInfo:
 
 chars: list[CharInfo] = []
 
-base_y = args.height
+base_y = 1
 char_code = args.code_offset
 while base_y < height:
     # ベースラインの赤い線を探す
@@ -50,6 +47,11 @@ while base_y < height:
     if not found:
         base_y += 1
         continue
+    
+    # 文字高を自動決定
+    if args.height <= 0:
+        args.height = base_y
+        print(f"*INFO: Font height for '{args.name}' was automatically determined: {args.height}px")
     
     # 文字毎に分解する
     last_is_red = False
@@ -68,6 +70,10 @@ while base_y < height:
         last_is_red = curr_is_red
 
     base_y += args.height + 1
+
+if args.spacing < 0:
+    args.spacing = (args.height + 7) // 8
+    print(f"*INFO: Char spacing for '{args.name}' was automatically determined: {args.spacing}px")
 
 data_array_name = f'{args.name}_data'
 index_array_name = f'{args.name}_index'

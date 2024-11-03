@@ -10,6 +10,7 @@
 #include "jjy/common.hpp"
 
 #include "lazy_timer.hpp"
+#include "ring_stat.hpp"
 
 namespace jjy::rx {
 
@@ -26,7 +27,7 @@ public:
     int32_t adc_max;
     uint8_t hyst_dig_out;
     uint8_t digital_out;
-    int32_t quarity;
+    int32_t signal_quarity;
 
     int32_t det_anl_out_raw;
     int32_t det_anl_out_norm;
@@ -43,7 +44,7 @@ public:
         hyst_dig_out = 0;
         det_anl_out_raw = 0;
         digital_out = 0;
-        quarity = 0;
+        signal_quarity = 0;
         det_anl_out_base = 0;
         det_anl_out_peak = 0;
         det_anl_out_norm = 0;
@@ -66,14 +67,12 @@ public:
     int32_t gain;
 
 private:
-    LazyTimer<uint32_t> gain_update_timer;
+    LazyTimer<uint32_t, HISTORY_STEP_MS> gain_update_timer;
     int32_t amp_history[HISTORY_SIZE];
     int32_t amp_peak;
     int history_index = 0;
 
 public:
-    Agc() : gain_update_timer(HISTORY_STEP_MS) { }
-
     void init() {
         offset = ONE / 2;
         gain = ONE;
@@ -149,7 +148,7 @@ private:
     int32_t sin_table_40kHz[PERIOD];
     int32_t sin_table_60kHz[PERIOD];
     int phase;
-
+    
 public:
     QuadDetector() {
         // sinテーブル
@@ -197,6 +196,9 @@ public:
     static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
     static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
 
+    static constexpr int QUARITY_HISTORY_SIZE = 100;
+    static constexpr int QUARITY_HISTORY_STEP_MS = 1000 / QUARITY_HISTORY_SIZE;
+
     int32_t thresh;
     int32_t hysteresis;
     uint8_t anti_chat_sreg;
@@ -207,6 +209,8 @@ public:
 
     int32_t det_base;
     int32_t det_peak;
+
+    int32_t quarity;
     
 private:
     int32_t accum_base;
@@ -215,13 +219,13 @@ private:
     int32_t peak_history[HISTORY_SIZE];
     int history_index = 0;
 
-    LazyTimer<uint32_t> thresh_update_timer;
-    LazyTimer<uint32_t, false> pulse_width_limit_timer;
+    LazyTimer<uint32_t, HISTORY_STEP_MS> thresh_update_timer;
+    LazyTimer<uint32_t, PULSE_WIDTH_LIMIT_MS, false> pulse_width_limit_timer;
+
+    LazyTimer<uint32_t, QUARITY_HISTORY_STEP_MS> qty_history_update_timer;
+    RingStat<int32_t, QUARITY_HISTORY_SIZE> qty_history;
 
 public:
-
-    Binarizer() : thresh_update_timer(HISTORY_STEP_MS), pulse_width_limit_timer(PULSE_WIDTH_LIMIT_MS) { }
-
     void init(void) {
         for (int i = 0; i < HISTORY_SIZE; i++) {
             base_history[i] = ONE / 2;
@@ -243,6 +247,10 @@ public:
         uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
         thresh_update_timer.start(t_now_ms);
         pulse_width_limit_timer.start(t_now_ms, PULSE_WIDTH_LIMIT_MS);
+
+        qty_history_update_timer.start(to_ms_since_boot(get_absolute_time()));
+        qty_history.clear(0);
+        quarity = 0;
     }
 
     uint8_t process(uint32_t t_now_ms, int32_t in) {
@@ -278,6 +286,15 @@ public:
         // スレッショルド更新
         if (thresh_update_timer.is_expired(t_now_ms)) {
             update_thresh();
+        }
+
+        // 信号品質測定
+        if (qty_history_update_timer.is_expired(t_now_ms)) {
+            int32_t range = det_peak - det_base;
+            int32_t thresh = (det_peak + det_base) / 2;
+            int32_t qty = JJY_CLIP(0, jjy::ONE, JJY_ABS(in - thresh) * jjy::ONE / (range / 2));
+            qty_history.push(qty);
+            quarity = qty_history.ave();
         }
 
         return pulse_width_limited_out;
@@ -353,7 +370,7 @@ public:
         status.det_anl_out_peak = bin.det_peak;
         status.det_anl_out_norm = (det_anl_out_raw - bin.det_base) * ONE / (bin.det_peak - bin.det_base);
         status.hyst_dig_out = bin.hyst_out;
-        status.quarity = ((bin.det_peak - bin.det_base) * ONE) / bin.det_peak;
+        status.signal_quarity = bin.quarity;
         status.digital_out = out;
 
         return out;

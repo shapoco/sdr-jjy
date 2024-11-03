@@ -121,7 +121,7 @@ int main() {
 #if ENABLE_STDOUT
             float core0usage = (float)(100 * t_calc_us) / (t_calc_us + t_dma_us);
             float gain = (float)sts.rf.agc_gain / (1 << jjy::PREC);
-            float qty = (float)sts.rf.quarity / (1 << jjy::PREC);
+            float qty = (float)sts.rf.signal_quarity / (1 << jjy::PREC);
             printf("AdcLv:%3d, AGC:%6.2f, Base/Peak:%4d/%4d, Qty:%4.2f, Core0Usage:%6.2f%%\n",
                 (int)sts.rf.adc_amplitude_peak, gain, (int)sts.rf.det_anl_out_base, (int)sts.rf.det_anl_out_peak, qty, core0usage);
 #endif

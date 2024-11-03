@@ -41,10 +41,11 @@ void core1_init() {
 }
 
 void core1_main() {
-    LazyTimer<uint32_t> waveform_update_timer(5);
-    LazyTimer<uint32_t> render_timer(20);
+    LazyTimer<uint32_t, 5> waveform_update_timer;
+    LazyTimer<uint32_t, 20> render_timer;
 
     int32_t gain_meter_scale = fxp12::ONE;
+    int32_t gain_meter_curr = 0;
     int32_t qty_meter_curr = 0;
 
     {
@@ -67,40 +68,70 @@ void core1_main() {
             lcd.clear();
             //render_guages(t_now_ms);
             {
-                if (sts.rf.agc_gain > gain_meter_scale * 3 / 2) {
-                    gain_meter_scale *= 2;
+                const int y0 = 0;
+                
+                {
+                    if (sts.rf.agc_gain > gain_meter_scale * 3 / 2) {
+                        gain_meter_scale *= 2;
+                    }
+                    else if (sts.rf.agc_gain < gain_meter_scale * 3 / 4) {
+                        gain_meter_scale /= 2;
+                    }
+                    //int32_t diff = (sts.rf.agc_gain - gain_meter_scale) / (1 << 4);
+                    //gain_meter_scale += diff;
                 }
-                else if (sts.rf.agc_gain < gain_meter_scale * 3 / 4) {
-                    gain_meter_scale /= 2;
+
+                {
+                    int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc::GOAL_AMPLITUDE * 5 / 4);
+                    int32_t diff = (goal - gain_meter_curr) / (1 << 1);
+                    gain_meter_curr += diff;
                 }
+                amp_meter.render(t_now_ms, 0, y0 + 6, lcd, gain_meter_curr);
 
-                int32_t val = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc::GOAL_AMPLITUDE * 3 / 2);
-                amp_meter.render(t_now_ms, 0, 0, lcd, val);
+                const int sx0 = 0;
+                lcd.fill_rect(sx0 - 1, y0, 17, 6, pen_t::BLACK);
+                lcd.draw_string(bmpfont::font5, sx0, y0, "AMP");
 
-                lcd.fill_rect(7, 8, 17, 6, pen_t::BLACK);
-                lcd.draw_string(bmpfont::font5, 8, 9, "AMP");
-
-                char s[16];
+                const int zx0 = 22;
+                char s[8];
                 if (gain_meter_scale >= jjy::ONE) {
                     sprintf(s, "x%1d", gain_meter_scale / jjy::ONE);
                 }
                 else {
                     sprintf(s, "/%1d", jjy::ONE / gain_meter_scale);
                 }
-                lcd.fill_rect(23, 0, 9, 6, pen_t::BLACK);
-                lcd.draw_string(bmpfont::font5, 24, 0, s);
+                //sprintf(s, "x%3.1f", (float)gain_meter_scale / jjy::ONE);
+                //lcd.fill_rect(zx0 - 1, 0, 32 - zx0, 6, pen_t::BLACK);
+                lcd.draw_string(bmpfont::font5, zx0, y0, s);
             }
 
             {
+                const int y0 = 18;
                 int32_t diff = (sts.sync.bit_det_quality - qty_meter_curr) / (1 << 3);
                 qty_meter_curr += diff;
-                qty_meter.render(t_now_ms, 0, 16, lcd, qty_meter_curr);
+                int32_t qty = qty_meter_curr * sts.rf.signal_quarity / jjy::ONE;
+                //int32_t qty = (qty_meter_curr + sts.rf.signal_quarity) / 2;
+                qty_meter.render(t_now_ms, 0, y0 + 6, lcd, qty);
 
-                lcd.fill_rect(7, 24, 17, 6, pen_t::BLACK);
-                lcd.draw_string(bmpfont::font5, 8, 25, "QTY");
+                const int sx0 = 0;
+                //lcd.fill_rect(sx0 - 1, y0, 17, 6, pen_t::BLACK);
+                lcd.draw_string(bmpfont::font5, sx0, y0, "QTY");
+                
+                const int zx0 = 22;
+                char s[8];
+                sprintf(s, "%d", qty * 100 / jjy::ONE);
+                //sprintf(s, "x%3.1f", (float)gain_meter_scale / jjy::ONE);
+                //lcd.fill_rect(zx0 - 1, 0, 32 - zx0, 6, pen_t::BLACK);
+                lcd.draw_string(bmpfont::font5, zx0, y0, s);
             }
 
-            rader.render(t_now_ms, 32 + Rader::RADIUS, Rader::RADIUS, lcd, sts);
+            {
+                const int x0 = 40;
+                const int y0 = 0;
+                //lcd.fill_rect(sx0 - 1, y0, 17, 6, pen_t::BLACK);
+                lcd.draw_string(bmpfont::font5, x0 + 4, y0, "PHASE");
+                rader.render(t_now_ms, x0 + Rader::RADIUS, y0 + 6 + Rader::RADIUS, lcd, sts);
+            }
             render_sync_status(t_now_ms);
             lcd.commit();
         }
@@ -111,16 +142,16 @@ void core1_main() {
 
 static void render_sync_status(uint32_t t_now_ms) {
     int x = 0;
-    int y = 32;
+    int y = 40;
     const bmpfont::Font &font = bmpfont::font16;
     if (!sts.sync.phase_locked) {
         lcd.draw_string(font, x, y, "Phase Sync...");
         y += font.height - 2;
-        lcd.fill_rect(x, y, (LCD_W / 2) * sts.sync.phase_lock_progress / jjy::ONE, 1);
+        lcd.fill_rect(x, y, (LCD_W / 2) * sts.sync.phase_lock_progress / jjy::ONE, 2);
     }
     else if (!sts.sync.bit_det_ok) {
         lcd.draw_string(font, x, y, "Pulse Check...");
         y += font.height - 2;
-        lcd.fill_rect(x, y, (LCD_W / 2) + (LCD_W / 2) * sts.sync.bit_det_progress / jjy::ONE, 1);
+        lcd.fill_rect(x, y, (LCD_W / 2) + (LCD_W / 2) * sts.sync.bit_det_progress / jjy::ONE, 2);
     }
 }

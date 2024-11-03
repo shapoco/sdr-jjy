@@ -31,8 +31,8 @@ typedef struct {
 
 class Synchronizer {
 private:
-    static constexpr int PHASE_CAND_EXPIRE_TIME_MS = 1200;
-    static constexpr int PHASE_LOCK_WAIT_TIME_MS = 1024 * 5;
+    static constexpr int CAND_EXPIRE_TIME_MS = 1200;
+    static constexpr int LOCK_WAIT_TIME_MS = 1024 * 5;
     static constexpr int SCORE_MAX = 10;
     static constexpr uint32_t BITDET_SREG_INITVAL = 0x55555555;
     static constexpr int BITDET_NUM_SLOTS = 10;
@@ -47,9 +47,9 @@ private:
     int bitdet_ok_history_index = 0;
     int bitdet_ok_history_count = 0;
 
-    LazyTimer<uint32_t> phase_cand_update_timer;
-    LazyTimer<uint32_t, false> phase_lock_wait_timer;
-    LazyTimer<uint32_t, false> phase_cand_expire_timer;
+    LazyTimer<uint32_t, 1000> cand_update_timer;
+    LazyTimer<uint32_t, CAND_EXPIRE_TIME_MS, false> cand_expire_timer;
+    LazyTimer<uint32_t, LOCK_WAIT_TIME_MS, false> lock_wait_timer;
 
 public:
     sync_status_t status;
@@ -65,20 +65,15 @@ public:
     uint32_t bitdet_sreg = BITDET_SREG_INITVAL;
     int bitdet_ok_count = 0;
 
-    Synchronizer() : 
-        phase_cand_update_timer(1000), 
-        phase_cand_expire_timer(PHASE_CAND_EXPIRE_TIME_MS), 
-        phase_lock_wait_timer(PHASE_LOCK_WAIT_TIME_MS) { }
-
     void init() {
         uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());;
 
         t_last_ms = t_now_ms;
         last_in = 0;
 
-        phase_cand_update_timer.start(t_now_ms);
-        phase_cand_expire_timer.set_expired();
-        phase_lock_wait_timer.start(t_now_ms);
+        cand_update_timer.start(t_now_ms);
+        cand_expire_timer.set_expired();
+        lock_wait_timer.start(t_now_ms);
         phase_last_cand_index = -1;
 
         bitdet_last_slot = 0;
@@ -118,7 +113,7 @@ public:
         int32_t phase_ms = t_now_ms % 1000;
         int32_t phase = phase_ms * PHASE_PERIOD / 1000;
 
-        bool cand_upd = phase_cand_update_timer.is_expired(t_now_ms);
+        bool cand_upd = cand_update_timer.is_expired(t_now_ms);
 
         // エッジの減衰
         if (cand_upd) {
@@ -130,7 +125,7 @@ public:
                 if (cand.valid) num_valid_cand += 1;
             }
             if (num_valid_cand == 0) {
-                phase_cand_expire_timer.set_expired();
+                cand_expire_timer.set_expired();
             }
         }
 
@@ -154,33 +149,33 @@ public:
                 }
             }
             if (best_index < 0) {
-                phase_cand_expire_timer.set_expired();
+                cand_expire_timer.set_expired();
             }
             else if (phase_last_cand_index == best_index) {
-                phase_cand_expire_timer.start(t_now_ms);
+                cand_expire_timer.start(t_now_ms);
                 status.phase = best_phase;
             }
             else {
-                phase_cand_expire_timer.set_expired();
+                cand_expire_timer.set_expired();
                 status.phase = best_phase;
             }
             phase_last_cand_index = best_index;
         }
 
-        if (phase_cand_expire_timer.is_expired(t_now_ms)) {
+        if (cand_expire_timer.is_expired(t_now_ms)) {
             // 位相候補期限切れ
-            phase_lock_wait_timer.start(t_now_ms);
+            lock_wait_timer.start(t_now_ms);
             status.phase_lock_progress = 0;
         }
         else {
             // ビット位相ロック判定
-            status.phase_locked = phase_lock_wait_timer.is_expired(t_now_ms);
-            int32_t elapsed_ms = phase_lock_wait_timer.elapsed(t_now_ms);
+            status.phase_locked = lock_wait_timer.is_expired(t_now_ms);
+            int32_t elapsed_ms = lock_wait_timer.elapsed(t_now_ms);
             if (status.phase_locked) {
                 status.phase_lock_progress = ONE;    
             }
             else {
-                status.phase_lock_progress = JJY_CLIP(0, ONE, elapsed_ms * ONE / PHASE_LOCK_WAIT_TIME_MS);
+                status.phase_lock_progress = JJY_CLIP(0, ONE, elapsed_ms * ONE / LOCK_WAIT_TIME_MS);
             }
         }
 

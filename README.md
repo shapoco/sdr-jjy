@@ -1,10 +1,10 @@
-# Raspberry Pi Pico 2 JJY 受信機 (WIP)
+# ラズピコ JJY 受信機 (WIP)
 
 試行錯誤中。
 
 ## 構成
 
-ネットで見つけた構成の切り貼りとカットアンドトライの結果であるため、多分あちこちおかしいと思います。
+恥ずかしながらネットで見つけた構成の切り貼りとカットアンドトライの結果であるため、多分あちこちおかしいと思います。
 
 ![回路図](images/circuit_diagram.png)
 
@@ -18,12 +18,18 @@
 
 どちらでも受信できましたが、400mm 版の方が受信強度が強かったのでそちらを使っています。
 
-||200mm版|400mm版|単位|
-|:--:|:--:|:--:|:--:|
-|直径|200|400|mm|
-|巻数|約115|65|turns|
-|線径|0.26|0.3|mm|
-|C1容量|1000|1000 + 100|pF|
+||200mm版|400mm版|ペットボトル版|単位|
+|:--:|:--:|:--:|:--:|:--:|
+|直径|200|400|約65mm (※1)|mm|
+|巻数|約115|65|約300|turns|
+|線径|0.26|0.3|0.18|mm|
+|C1容量|1000|1000+100|1000+470+100|pF|
+
+※1) コカ・コーラ Qoo 280mL。胴部分は一辺 33mm ほどの六角形
+
+<a href="./images/anetenna_200mm.jpg"><img src="./images/anetenna_200mm.jpg" style="width:auto;height:128px;"></a>
+<a href="./images/anetenna_400mm.jpg"><img src="./images/anetenna_400mm.jpg" style="width:auto;height:128px;"></a>
+<a href="./images/anetenna_plastic_bottle.jpg"><img src="./images/anetenna_plastic_bottle.jpg" style="width:auto;height:128px;"></a>
 
 ### STL
 

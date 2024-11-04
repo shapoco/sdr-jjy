@@ -277,32 +277,41 @@ public:
         fill_ellipse_f(Rect(x, y, w, h), pen);
     }
 
-    void fill_ellipse_f(const Rect rect_fxp, pen_t pen = pen_t::WHITE) {
-        Rect dest_rect = rect_fxp;
-        int r = (dest_rect.r() + fxp12::ONE - 1) / fxp12::ONE;
-        int b = (dest_rect.b() + fxp12::ONE - 1) / fxp12::ONE;
+    void fill_ellipse_f(const Rect rectf, pen_t pen = pen_t::WHITE) {
+        Rect dest_rect = rectf;
+        const int r = (dest_rect.r() + fxp12::ONE - 1) / fxp12::ONE;
+        const int b = (dest_rect.b() + fxp12::ONE - 1) / fxp12::ONE;
         dest_rect.x /= fxp12::ONE;
         dest_rect.y /= fxp12::ONE;
         dest_rect.w = r - dest_rect.x;
         dest_rect.h = b - dest_rect.y;
         dest_rect = clip_rect(dest_rect, W, H);
         if (dest_rect.w <= 0 || dest_rect.h <= 0) return;
-        const int rx = rect_fxp.w / 2;
-        const int ry = rect_fxp.h / 2;
-        const int cx = rect_fxp.x + rx;
-        const int cy = rect_fxp.y + ry;
-        const int dx = dest_rect.x;
-        const int dy = dest_rect.y;
-        const int dr = dest_rect.r();
-        const int db = dest_rect.b();
-        for (int y = dy; y < db; y++) {
-            for (int x = dx; x < dr; x++) {
-                int sx = (x * fxp12::ONE - cx) * 16 / rx;
-                int sy = (y * fxp12::ONE - cy) * 16 / ry;
-                if (sx * sx + sy * sy <= 16 * 16) {
+        const int rxf = rectf.w / 2;
+        const int ryf = rectf.h / 2;
+        const int cxf = rectf.x + rxf;
+        const int cyf = rectf.y + ryf;
+        const int dx0 = dest_rect.x;
+        const int dy0 = dest_rect.y;
+        const int dx1 = dest_rect.r();
+        const int dy1 = dest_rect.b();
+        constexpr int R_MUL = (1 << 4);
+        
+        // 楕円内かどうかをピクセル中心で判定するため 0.5px オフセットする
+        int yf = dy0 * fxp12::ONE + (fxp12::ONE / 2);
+        for (int y = dy0; y < dy1; y++) {
+            int rdy = (yf - cyf) * fxp12::ONE / ryf;
+            int rdy2 = rdy * rdy;
+            int xf = dx0 * fxp12::ONE + (fxp12::ONE / 2);
+            for (int x = dx0; x < dx1; x++) {
+                int rdx = (xf - cxf) * fxp12::ONE / rxf;
+                int rdx2 = rdx * rdx;
+                if (rdx2 + rdy2 < fxp12::ONE * fxp12::ONE) {
                     set_pixel(x, y, pen);
                 }
+                xf += fxp12::ONE;
             }
+            yf += fxp12::ONE;
         }
     }
 

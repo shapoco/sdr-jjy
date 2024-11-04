@@ -21,7 +21,8 @@ typedef struct {
 
 typedef struct {
     phase_cand_t phase_cands[NUM_PHASE_CANDS];
-    int32_t phase;
+    int32_t phase_cursor;
+    int32_t phase_offset;
     bool phase_locked;
     int32_t phase_lock_progress;
     int32_t bit_det_quality;
@@ -65,9 +66,7 @@ public:
     uint32_t bitdet_sreg = BITDET_SREG_INITVAL;
     int bitdet_ok_count = 0;
 
-    void init() {
-        uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());;
-
+    void init(uint32_t t_now_ms) {
         t_last_ms = t_now_ms;
         last_in = 0;
 
@@ -97,7 +96,8 @@ public:
             status.phase_cands[i].valid = false;
             status.phase_cands[i].phase = 0;
         }
-        status.phase = 0;
+        status.phase_offset = 0;
+        status.phase_cursor = (t_now_ms % 1000) * PHASE_PERIOD / 1000;
         status.phase_locked = false;
         status.phase_lock_progress = 0;
         status.bit_det_quality = 0;
@@ -112,6 +112,7 @@ public:
 
         int32_t phase_ms = t_now_ms % 1000;
         int32_t phase = phase_ms * PHASE_PERIOD / 1000;
+        status.phase_cursor = phase;
 
         bool cand_upd = cand_update_timer.is_expired(t_now_ms);
 
@@ -153,11 +154,11 @@ public:
             }
             else if (phase_last_cand_index == best_index) {
                 cand_expire_timer.start(t_now_ms);
-                status.phase = best_phase;
+                status.phase_offset = best_phase;
             }
             else {
                 cand_expire_timer.set_expired();
-                status.phase = best_phase;
+                status.phase_offset = best_phase;
             }
             phase_last_cand_index = best_index;
         }
@@ -184,7 +185,7 @@ public:
 
     bool detect_bit(uint8_t in, int32_t phase, jjybit_t *out) {
         // ビット検出
-        int32_t bit_phase = phase_add(phase, -status.phase);
+        int32_t bit_phase = phase_add(phase, -status.phase_offset);
         int32_t slot = bit_phase * BITDET_NUM_SLOTS / PHASE_PERIOD;
         bool slot_changed = slot != bitdet_last_slot;
         bool slot_unexp_change = slot_changed && (slot != (bitdet_last_slot + 1) % BITDET_NUM_SLOTS);
@@ -289,9 +290,9 @@ public:
         for (int i = 0; i < NUM_PHASE_CANDS; i++) {
             phase_cand_t &cand = status.phase_cands[i];
             if (!cand.valid) continue;
-            int32_t phase_diff = calc_phase_diff(phase, cand.phase);
-            if (JJY_ABS(phase_diff) < NEAR_THRESH) {
-                cand.phase = (cand.phase + PHASE_PERIOD + phase_diff / (2 + cand.score * 8 / SCORE_MAX)) % PHASE_PERIOD;
+            int32_t diff = phase_diff(phase, cand.phase);
+            if (JJY_ABS(diff) < NEAR_THRESH) {
+                phase_follow(&cand.phase, phase, ONE / (2 + cand.score * 8 / SCORE_MAX));
                 cand.score = JJY_MIN(SCORE_MAX, cand.score + score_add);
                 found = true;
                 break;
@@ -308,19 +309,19 @@ public:
                 for (int ib = ia + 1; ib < NUM_PHASE_CANDS; ib++) {
                     phase_cand_t &cand_b = status.phase_cands[ib];
                     if (!cand_b.valid) continue;
-                    int32_t phase_diff = calc_phase_diff(cand_b.phase, cand_a.phase);
-                    if (JJY_ABS(phase_diff) >= NEAR_THRESH) continue;;
-                    if (JJY_ABS(phase_diff) < JJY_ABS(nearest_diff)) {
+                    int32_t diff = phase_diff(cand_b.phase, cand_a.phase);
+                    if (JJY_ABS(diff) >= NEAR_THRESH) continue;;
+                    if (JJY_ABS(diff) < JJY_ABS(nearest_diff)) {
                         nearest_ia = ia;
                         nearest_ib = ib;
-                        nearest_diff = phase_diff;
+                        nearest_diff = diff;
                     }
                 }
             }
             if (nearest_ia >= 0 && nearest_ib >= 0) {
                 phase_cand_t &cand_a = status.phase_cands[nearest_ia];
                 phase_cand_t &cand_b = status.phase_cands[nearest_ib];
-                cand_a.phase += nearest_diff * cand_b.score / (cand_a.score + cand_b.score);
+                cand_a.phase = phase_add(cand_a.phase, nearest_diff * cand_b.score / (cand_a.score + cand_b.score));
                 cand_a.score = JJY_MIN(SCORE_MAX, cand_a.score + cand_b.score);
                 cand_b.valid = false;
                 cand_b.score = 0;

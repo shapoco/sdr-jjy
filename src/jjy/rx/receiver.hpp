@@ -13,14 +13,16 @@ public:
     Rf rf;
     Synchronizer sync;
 
-    void init(freq_t freq) {
-        rf.init(freq);
-        sync.init();
+    Receiver(uint32_t dma_size) : rf(dma_size) { }
+
+    void init(freq_t freq, uint32_t t_now_ms) {
+        rf.init(freq, t_now_ms);
+        sync.init(t_now_ms);
     }
 
-    void receive(const uint32_t t_now_ms, const uint16_t *samples, const uint32_t size) {
+    void receive(const uint32_t t_now_ms, const uint16_t *samples) {
         // 検波
-        uint8_t signal = rf.detect(t_now_ms, samples, size);
+        uint8_t signal = rf.detect(t_now_ms, samples);
 
         // ビット同期
         jjybit_t bit;

@@ -21,7 +21,7 @@ public:
 
     bool push(T value) {
         _history[_cursor] = value;
-        if (_size < PERIOD - 1) {
+        if (_size < PERIOD) {
             _size += 1;
         }
         if (_cursor < PERIOD - 1) {
@@ -53,7 +53,7 @@ public:
         for (int i = 0; i < _size; i++) {
             T val = _history[i];
             if (i == 0) min = val;
-            else if (val < min) val = min;
+            else if (val < min) min = val;
         }
         return min;
     }
@@ -63,7 +63,7 @@ public:
         for (int i = 0; i < _size; i++) {
             T val = _history[i];
             if (i == 0) max = val;
-            else if (val > max) val = max;
+            else if (val > max) max = val;
         }
         return max;
     }

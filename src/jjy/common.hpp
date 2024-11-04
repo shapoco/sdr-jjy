@@ -43,11 +43,25 @@ static int32_t phase_add(int32_t x, int32_t delta) {
     return ret;
 }
 
-static int32_t calc_phase_diff(int32_t a, int32_t b) {
+static int32_t phase_diff(int32_t a, int32_t b) {
     int32_t diff = a - b;
-    if (diff < -PHASE_PERIOD / 2) return diff + PHASE_PERIOD;
-    if (diff >= PHASE_PERIOD / 2) return diff - PHASE_PERIOD;
+    if (diff < -PHASE_PERIOD / 2) {
+        do { diff += PHASE_PERIOD; } while (diff < -PHASE_PERIOD / 2);
+    }
+    else if (diff >= PHASE_PERIOD / 2) {
+        do { diff -= PHASE_PERIOD; } while (diff >= PHASE_PERIOD / 2);
+    }
     return diff;
+}
+
+static void phase_follow(int32_t *x, int32_t goal, int32_t ratio) {
+    int32_t diff = phase_diff(goal, *x);
+    if (diff == 0) return;
+    int32_t step = diff * ratio / ONE;
+    if (step == 0) {
+        step = diff >= 0 ? 1 : -1;
+    }
+    *x = phase_add(*x, step);
 }
 
 // 平方根を速く求める

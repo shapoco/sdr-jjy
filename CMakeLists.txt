@@ -20,6 +20,7 @@ target_sources(
     src/images/images.cpp
     src/bmpfont/font5.cpp
     src/bmpfont/font16.cpp
+    src/misc/lcd_demo.cpp
     src/core0.cpp
     src/core1.cpp
 )
@@ -27,6 +28,7 @@ target_sources(
 target_include_directories(
     pico2_jjy_receiver PRIVATE
     src
+    src/misc
 )
 
 target_link_libraries(

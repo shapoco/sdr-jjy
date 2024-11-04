@@ -21,8 +21,8 @@
 static constexpr uint32_t SYS_CLK_FREQ = 120 * MHZ;
 static constexpr uint32_t DET_RESO = 8;
 static constexpr uint32_t ADC_SPS = jjy::rx::DET_SPS;
-static constexpr uint32_t DMA_SIZE = 1000;
-static constexpr uint32_t DMA_PER_SEC = ADC_SPS / 1000;
+static constexpr uint32_t DMA_SIZE = 5000;
+static constexpr uint32_t DMA_PER_SEC = ADC_SPS / DMA_SIZE;
 
 static constexpr int PIN_ADC_IN = 26;
 static constexpr int PIN_LED_OUT = 25;
@@ -34,7 +34,7 @@ static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
 static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 
 DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
-jjy::rx::Receiver receiver;
+jjy::rx::Receiver receiver(DMA_SIZE);
 
 atomic<receiver_status_t> glb_receiver_status;
 
@@ -48,6 +48,8 @@ int main() {
     stdio_init_all();
     sleep_ms(500);
     printf("Start.\n");
+    printf("receiver.rf.det_delay_ms = %d\n", receiver.rf.det_delay_ms);
+    printf("receiver.rf.anti_chat_delay_ms = %d\n", receiver.rf.anti_chat_delay_ms);
 #endif
 
     // Setup fixed-point library
@@ -88,7 +90,7 @@ int main() {
     uint32_t t_dma_us = 0, t_calc_us = 0;
     uint32_t t_next_print_ms = t_last_us / 1000;
 
-    receiver.init(jjy::WEST_60KHZ);
+    receiver.init(jjy::EAST_40KHZ, to_ms_since_boot(get_absolute_time()));
 
     while(true) {
 
@@ -104,7 +106,7 @@ int main() {
         
         uint32_t t_now_ms = t_now_us / 1000;
 
-        receiver.receive(t_now_ms, dma_buff, DMA_SIZE);
+        receiver.receive(t_now_ms, dma_buff);
         
         sts.rf = receiver.rf.get_status();
         sts.sync = receiver.sync.get_status();

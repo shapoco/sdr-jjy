@@ -8,7 +8,7 @@ static constexpr int LCD_W = 128;
 static constexpr int LCD_H = 64;
 
 static constexpr int LCD_SPI_INDEX = 0;
-static constexpr uint32_t LCD_SPI_FREQ = 1e6;
+static constexpr uint32_t LCD_SPI_FREQ = 2e6;
 static constexpr int PIN_LCD_CS_N = 17;
 static constexpr int PIN_LCD_SCLK = 18;
 static constexpr int PIN_LCD_MOSI = 19;

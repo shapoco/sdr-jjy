@@ -22,6 +22,8 @@
 
 #include "lazy_timer.hpp"
 
+#include "lcd_demo.hpp"
+
 extern atomic<receiver_status_t> glb_receiver_status;
 static receiver_status_t sts;
 
@@ -32,8 +34,15 @@ using pen_t = ssd1309spi::pen_t;
 
 static Rader rader;
 static Meter amp_meter;
-static Meter qty_meter;
+static Meter quarity_meter;
 
+static int32_t gain_meter_scale = fxp12::ONE;
+static int32_t gain_meter_curr = 0;
+static int32_t qty_meter_curr = 0;
+
+static void render_gain_meter(uint32_t t_now_ms, int x0, int y0);
+static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0);
+static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val);
 static void render_sync_status(uint32_t t_now_ms);
 
 void core1_init() {
@@ -43,10 +52,6 @@ void core1_init() {
 void core1_main() {
     LazyTimer<uint32_t, 5> waveform_update_timer;
     LazyTimer<uint32_t, 20> render_timer;
-
-    int32_t gain_meter_scale = fxp12::ONE;
-    int32_t gain_meter_curr = 0;
-    int32_t qty_meter_curr = 0;
 
     {
         uint32_t t_now_ms = to_ms_since_boot(get_absolute_time());
@@ -66,65 +71,12 @@ void core1_main() {
         if (render_timer.is_expired(t_now_ms)) {
 
             lcd.clear();
-            //render_guages(t_now_ms);
-            {
-                const int y0 = 0;
-                
-                {
-                    if (sts.rf.agc_gain > gain_meter_scale * 3 / 2) {
-                        gain_meter_scale *= 2;
-                    }
-                    else if (sts.rf.agc_gain < gain_meter_scale * 3 / 4) {
-                        gain_meter_scale /= 2;
-                    }
-                    //int32_t diff = (sts.rf.agc_gain - gain_meter_scale) / (1 << 4);
-                    //gain_meter_scale += diff;
-                }
 
-                {
-                    int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc::GOAL_AMPLITUDE * 5 / 4);
-                    int32_t diff = (goal - gain_meter_curr) / (1 << 1);
-                    gain_meter_curr += diff;
-                }
-                amp_meter.render(t_now_ms, 0, y0 + 6, lcd, gain_meter_curr);
-
-                const int sx0 = 0;
-                lcd.fill_rect(sx0 - 1, y0, 17, 6, pen_t::BLACK);
-                lcd.draw_string(bmpfont::font5, sx0, y0, "AMP");
-
-                const int zx0 = 22;
-                char s[8];
-                if (gain_meter_scale >= jjy::ONE) {
-                    sprintf(s, "x%1d", gain_meter_scale / jjy::ONE);
-                }
-                else {
-                    sprintf(s, "/%1d", jjy::ONE / gain_meter_scale);
-                }
-                //sprintf(s, "x%3.1f", (float)gain_meter_scale / jjy::ONE);
-                //lcd.fill_rect(zx0 - 1, 0, 32 - zx0, 6, pen_t::BLACK);
-                lcd.draw_string(bmpfont::font5, zx0, y0, s);
-            }
-
-            {
-                const int y0 = 18;
-                int32_t diff = (sts.sync.bit_det_quality - qty_meter_curr) / (1 << 3);
-                qty_meter_curr += diff;
-                int32_t qty = qty_meter_curr * sts.rf.signal_quarity / jjy::ONE;
-                //int32_t qty = (qty_meter_curr + sts.rf.signal_quarity) / 2;
-                qty_meter.render(t_now_ms, 0, y0 + 6, lcd, qty);
-
-                const int sx0 = 0;
-                //lcd.fill_rect(sx0 - 1, y0, 17, 6, pen_t::BLACK);
-                lcd.draw_string(bmpfont::font5, sx0, y0, "QTY");
-                
-                const int zx0 = 22;
-                char s[8];
-                sprintf(s, "%d", qty * 100 / jjy::ONE);
-                //sprintf(s, "x%3.1f", (float)gain_meter_scale / jjy::ONE);
-                //lcd.fill_rect(zx0 - 1, 0, 32 - zx0, 6, pen_t::BLACK);
-                lcd.draw_string(bmpfont::font5, zx0, y0, s);
-            }
-
+#if 0
+            lcd_demo_render(lcd, t_now_ms);
+#else
+            render_gain_meter(t_now_ms, 0, 0);
+            render_quarity_meter(t_now_ms, 0, 22);
             {
                 const int x0 = 40;
                 const int y0 = 0;
@@ -132,12 +84,89 @@ void core1_main() {
                 lcd.draw_string(bmpfont::font5, x0 + 4, y0, "PHASE");
                 rader.render(t_now_ms, x0 + Rader::RADIUS, y0 + 6 + Rader::RADIUS, lcd, sts);
             }
+            
             render_sync_status(t_now_ms);
+#endif
             lcd.commit();
         }
 
         lcd.service();
     }
+}
+
+static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
+    constexpr bool SMOOTH_SCALE = true;
+
+    if (SMOOTH_SCALE) {
+        fxp12::interp(&gain_meter_scale, sts.rf.agc_gain, fxp12::ONE / 4);
+    }
+    else {
+        if (sts.rf.agc_gain > gain_meter_scale * 3 / 2) {
+            gain_meter_scale *= 2;
+        }
+        else if (sts.rf.agc_gain < gain_meter_scale * 3 / 4) {
+            gain_meter_scale /= 2;
+        }
+    }
+
+    int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc::GOAL_AMPLITUDE * 5 / 4);
+    fxp12::interp(&gain_meter_curr, goal, fxp12::ONE / 2);
+    
+    lcd.draw_string(bmpfont::font5, x0, y0, "AMP");
+
+    const int scale_text_x = x0 + 17;
+    char s[8];
+    if (SMOOTH_SCALE) {
+        sprintf(s, "x%3.1f", (float)gain_meter_scale / jjy::ONE);
+    }
+    else {
+        if (gain_meter_scale >= jjy::ONE) {
+            sprintf(s, "x%1d", gain_meter_scale / jjy::ONE);
+        }
+        else {
+            sprintf(s, "/%1d", jjy::ONE / gain_meter_scale);
+        }
+    }
+    lcd.draw_string(bmpfont::font5, scale_text_x, y0, s);
+
+    render_meter(t_now_ms, 0, y0 + 6, gain_meter_curr);
+}
+
+static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0) {
+    fxp12::interp(&qty_meter_curr, sts.sync.bit_det_quality, fxp12::ONE / 8);
+#if 1
+    int32_t qty = qty_meter_curr * sts.rf.signal_quarity / jjy::ONE;
+#else
+    int32_t qty = (qty_meter_curr + sts.rf.signal_quarity) / 2;
+#endif
+
+    lcd.draw_string(bmpfont::font5, x0, y0, "QTY");
+    render_meter(t_now_ms, 0, y0 + 6, qty);
+    
+    char s[8];
+    sprintf(s, "%d", qty * 100 / jjy::ONE);
+    lcd.draw_string(bmpfont::font5, x0 + 22, y0, s);
+}
+
+static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val) {
+    constexpr int32_t A_PERIOD = fxp12::ANGLE_PERIOD * 45 / 360;
+    constexpr int RADIUS_MAX = 40;
+    constexpr int RADIUS_MIN = RADIUS_MAX - 10;
+
+    lcd.draw_bitmap(x0, y0, bmp_meter_frame);
+    
+    val = FXP_CLIP(0, fxp12::ONE, val);
+    int32_t a = (fxp12::ANGLE_PERIOD * 3 / 4 - A_PERIOD / 2) + (A_PERIOD * val) / fxp12::ONE;
+    int32_t sin = fxp12::sin(a);
+    int32_t cos = fxp12::cos(a);
+    int32_t cx = (x0 + 16) * fxp12::ONE;
+    int32_t cy = (y0 + RADIUS_MAX) * fxp12::ONE + fxp12::ONE / 2;
+    int32_t lx0 = cx + cos * (RADIUS_MAX - 1);
+    int32_t ly0 = cy + sin * (RADIUS_MAX - 1);
+    int32_t lx1 = cx + cos * RADIUS_MIN;
+    int32_t ly1 = cy + sin * RADIUS_MIN;
+    lcd.draw_line_f(lx0 - fxp12::ONE / 2, ly0, lx1 - fxp12::ONE / 2, ly1);
+    lcd.draw_line_f(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
 }
 
 static void render_sync_status(uint32_t t_now_ms) {

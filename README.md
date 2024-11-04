@@ -25,7 +25,7 @@
 
 ※1) コカ・コーラ社 Qoo 280mL。胴部分は一辺 33mm ほどの六角形
 
-ループアンテナはどちらでも安定して受信できました。400mm 版の方が受信強度が強かったのでそちらを使っています。ペットボトル版でも一応受信できましたが、部屋のシーリングを消灯しないと信号がノイズに埋もれてしまうなど不安定でした。
+ループアンテナはどちらでも十分安定して受信できました。400mm 版の方が受信強度が強かったのでそちらを使っています。ペットボトル版でも一応受信できましたが、部屋のシーリングライトを消灯しないと信号がノイズに埋もれてしまうなど不安定でした。
 
 <a href="./images/anetenna_200mm.jpg"><img src="./images/anetenna_200mm.jpg" style="width:auto;height:128px;"></a>
 <a href="./images/anetenna_400mm.jpg"><img src="./images/anetenna_400mm.jpg" style="width:auto;height:128px;"></a>

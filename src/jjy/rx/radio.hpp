@@ -7,10 +7,15 @@
 
 #include "pico/stdlib.h"
 
+#include "shapoco/ring_scope.hpp"
+#include "shapoco/peak_hold.hpp"
+
 #include "jjy/common.hpp"
 
 #include "lazy_timer.hpp"
 #include "ring_stat.hpp"
+
+using namespace shapoco; // todo: 削除
 
 namespace jjy::rx {
 
@@ -36,6 +41,9 @@ public:
     int32_t det_anl_out_raw;
     int32_t det_anl_out_norm;
 
+    bool beat_detected;
+    int32_t det_anl_out_beat_det;
+
     int32_t det_anl_out_base;
     int32_t det_anl_out_peak;
 
@@ -55,6 +63,9 @@ public:
         det_anl_out_base = 0;
         det_anl_out_peak = 0;
         det_anl_out_norm = 0;
+
+        beat_detected = false;
+        det_anl_out_beat_det = 0;
     }
 } rf_status_t;
 
@@ -179,6 +190,40 @@ public:
     }
 };
 
+class AntiChattering {
+public:
+    static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
+    uint8_t anti_chat_sreg;
+    uint8_t anti_chat_out;
+    uint8_t hyst_out;
+
+private:
+
+public:
+    void init(uint32_t t_now_ms) {
+        hyst_out = 0;
+        anti_chat_sreg = 0;
+        anti_chat_out = 0;
+    }
+    
+    uint8_t process(uint32_t t_now_ms, int32_t thresh, int32_t hysteresis, int32_t in) {
+        // ヒステリシス
+        int32_t biased_thresh = (anti_chat_sreg & 1) ? thresh - hysteresis : thresh + hysteresis;
+        hyst_out = (in > biased_thresh) ? 1 : 0;
+
+        // チャタリング除去
+        anti_chat_sreg = (anti_chat_sreg << 1) & ((1 << ANTI_CHAT_CYCLES) - 1);
+        anti_chat_sreg |= hyst_out;
+        if (anti_chat_sreg == 0) {
+            anti_chat_out = 0;
+        }
+        else if (anti_chat_sreg == ((1 << ANTI_CHAT_CYCLES) - 1)) {
+            anti_chat_out = 1;
+        }
+        return anti_chat_out;
+    }
+};
+
 class Binarizer {
 public:
     static constexpr uint32_t PEAK_HISTORY_STEP_MS = 100;
@@ -186,19 +231,28 @@ public:
 
     static constexpr int32_t HYSTERESIS_RATIO = ONE / 10;
 
-    static constexpr int ANTI_CHAT_CYCLES = 3; // チャタリング除去の強さ
+    static constexpr uint32_t BEAT_DET_AMP_SCOPE_PERIOD_MS = 100;
+    static constexpr uint32_t BEAT_DET_AMP_SCOPE_RESO_MS = 20;
+    static constexpr uint32_t BEAT_DET_PERIOD_MS = 3000;
+    static constexpr int BEAT_DET_EDGE_THRESH = 20;
+
     static constexpr uint32_t PULSE_WIDTH_LIMIT_MS = 1000; // 最大パルス幅
 
     static constexpr int QUARITY_HISTORY_SIZE = 100;
     static constexpr int QUARITY_HISTORY_STEP_MS = 1000 / QUARITY_HISTORY_SIZE;
 
-    int32_t thresh;
     int32_t hysteresis;
-    uint8_t anti_chat_sreg;
+    int32_t thresh;
+    
+    uint8_t beat_det_last_in_dig;
+    int beat_det_edge_count;
+    int32_t beat_amp;
+    int32_t beat_amp_hold;
+    bool beat_detected;
+    int32_t beat_det_out;
 
-    uint8_t anti_chat_out;
-    uint8_t pulse_width_limited_out;
     uint8_t hyst_out;
+    uint8_t pulse_width_limited_out;
 
     int32_t det_base;
     int32_t det_peak;
@@ -211,7 +265,13 @@ private:
     RingStat<int32_t, PEAK_HISTORY_SIZE> base_history;
     RingStat<int32_t, PEAK_HISTORY_SIZE> peak_history;
 
+    AntiChattering anti_chat_before_smooth;
+    AntiChattering anti_chat_after_smooth;
+
     LazyTimer<uint32_t, PEAK_HISTORY_STEP_MS> thresh_update_timer;
+    RingScope<int32_t, uint32_t, ONE / 2, BEAT_DET_AMP_SCOPE_PERIOD_MS, BEAT_DET_AMP_SCOPE_RESO_MS> beat_amp_scope;
+    PeakHold<int32_t> beat_amp_peak_hold;
+    LazyTimer<uint32_t, BEAT_DET_PERIOD_MS> beat_det_timer;
     LazyTimer<uint32_t, PULSE_WIDTH_LIMIT_MS, false> pulse_width_limit_timer;
 
     int32_t accum_quality_value;
@@ -224,19 +284,26 @@ public:
         base_history.clear(ONE / 2);
         peak_history.clear(ONE / 2);
 
-        hysteresis = thresh * HYSTERESIS_RATIO / ONE;
         thresh = ONE / 2;
-        hyst_out = 0;
+        hysteresis = (ONE / 4) * HYSTERESIS_RATIO / ONE;
 
         accum_base = 0x7fffffff;
         accum_peak = 0;
 
-        anti_chat_sreg = 0;
-        anti_chat_out = 0;
+        beat_det_last_in_dig = 0;
+        beat_det_edge_count = 0;
+        beat_amp_scope.clear(t_now_ms);
+        beat_amp = 0;
+        beat_amp_peak_hold.clear();
+        beat_amp_hold = 0;
+        beat_detected = false;
+        beat_det_out = 0;
+
         pulse_width_limited_out = 0;
 
         thresh_update_timer.start(t_now_ms);
-        pulse_width_limit_timer.start(t_now_ms, PULSE_WIDTH_LIMIT_MS);
+        beat_det_timer.start(t_now_ms);
+        pulse_width_limit_timer.set_expired();
 
         accum_quality_value = 0;
         accum_quality_count = 0;
@@ -248,20 +315,36 @@ public:
     uint8_t process(uint32_t t_now_ms, int32_t in) {
         accum_base = JJY_MIN(accum_base, in);
         accum_peak = JJY_MAX(accum_peak, in);
+
+        // うなりの振幅検出
+        beat_amp_scope.write(t_now_ms, in);
+        beat_amp = beat_amp_scope.total_amplitude();
+        beat_amp_peak_hold.enter(beat_amp);
         
-        // ヒステリシス
-        int32_t biased_thresh = (anti_chat_sreg & 1) ? thresh - hysteresis : thresh + hysteresis;
-        hyst_out = (in >= biased_thresh) ? 1 : 0;
+        // うなりのエッジ検出
+        anti_chat_before_smooth.process(t_now_ms, thresh, hysteresis, in);
+        hyst_out = anti_chat_before_smooth.hyst_out;
+        bool edge = hyst_out != beat_det_last_in_dig;
+        beat_det_last_in_dig = hyst_out;
+        if (edge) beat_det_edge_count += 1;
+
+        // うなり検出判定
+        if (beat_det_timer.is_expired(t_now_ms)) {
+            beat_detected = beat_det_edge_count >= BEAT_DET_EDGE_THRESH;
+            beat_det_edge_count = 0;
+            beat_amp_hold = beat_amp_peak_hold.amplitude();
+            beat_amp_peak_hold.clear();
+        }
+        
+        // うなりを検出した場合はうなりの振幅を検波後の値として使用する
+        if (beat_detected) {
+            in = det_base + beat_amp * (det_peak - det_base) / beat_amp_hold;
+            //in = (det_peak + det_base) / 2 + (beat_amp - beat_amp_hold / 2) * 3 / 2;
+        }
+        beat_det_out = in;
 
         // チャタリング除去
-        anti_chat_sreg = (anti_chat_sreg << 1) & ((1 << ANTI_CHAT_CYCLES) - 1);
-        anti_chat_sreg |= hyst_out;
-        if (anti_chat_sreg == 0) {
-            anti_chat_out = 0;
-        }
-        else if (anti_chat_sreg == ((1 << ANTI_CHAT_CYCLES) - 1)) {
-            anti_chat_out = 1;
-        }
+        uint8_t anti_chat_out = anti_chat_after_smooth.process(t_now_ms, thresh, hysteresis, in);
 
         // パルス幅制限
         if (!anti_chat_out) {
@@ -310,7 +393,7 @@ public:
 
         // スレッショルド更新
         thresh = (det_base + det_peak) / 2;
-        hysteresis = ((det_peak - det_base) * HYSTERESIS_RATIO) >> PREC;
+        hysteresis = (det_peak - det_base) * HYSTERESIS_RATIO / ONE;
     }
 };
 
@@ -332,7 +415,7 @@ public:
     Rf(uint32_t dma_size) :
         dma_size(dma_size),
         det_delay_ms(1000 * dma_size / DET_SPS), 
-        anti_chat_delay_ms(det_delay_ms * (Binarizer::ANTI_CHAT_CYCLES - 1)),
+        anti_chat_delay_ms(det_delay_ms * (AntiChattering::ANTI_CHAT_CYCLES - 1)),
         agc_out(new int32_t[dma_size]) {}
     
     ~Rf() { delete[] agc_out; }
@@ -363,6 +446,8 @@ public:
         status.det_anl_out_base = bin.det_base;
         status.det_anl_out_peak = bin.det_peak;
         status.det_anl_out_norm = (det_anl_out_raw - bin.det_base) * ONE / (bin.det_peak - bin.det_base);
+        status.det_anl_out_beat_det = (bin.beat_det_out - bin.det_base) * ONE / (bin.det_peak - bin.det_base);
+        status.beat_detected = bin.beat_detected;
         status.hyst_dig_out = bin.hyst_out;
         status.signal_quarity = bin.quarity;
         status.digital_out = out;

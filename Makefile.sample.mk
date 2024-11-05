@@ -12,9 +12,7 @@ FATFS_DIR = ../fatfs/source
 
 IMAGES_CPP = src/images/images.cpp
 IMAGES_HPP = src/images/images.hpp
-IMAGES_SRC_LIST = \
-	$(wildcard src/bit_icons.png) \
-	$(wildcard src/meter.png)
+IMAGES_SRC_LIST = $(wildcard bmp/*.*)
 IMAGES_CPP_GEN_CMD = ./gen_bmp_array.py
 
 FONT5_NAME = font5
@@ -56,7 +54,7 @@ $(BIN): $(SRC_LIST) $(FONT_HPP_LIST) CMakeLists.txt
 	@echo $(REPO_DIR)/$(BIN)
 	@ls -l $(REPO_DIR)/$(BIN)
 
-$(IMAGES_HPP): $(IMAGES_CPP) $(IMAGES_SRC_LIST)
+$(IMAGES_HPP): $(IMAGES_CPP) $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
 $(IMAGES_CPP): $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
 	rm -f $(IMAGES_CPP) $(IMAGES_HPP)
 	@echo "#ifndef IMAGES_HPP" >> $(IMAGES_HPP)
@@ -67,6 +65,7 @@ $(IMAGES_CPP): $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
 	@echo "#include <stdint.h>" >> $(IMAGES_CPP)
 	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src bmp/bit_icons.png --name bmp_bit_icons
 	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src bmp/meter_frame.png --name bmp_meter_frame
+	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src bmp/icon_beat.png --name bmp_icon_beat
 	@echo >> $(IMAGES_HPP)
 	@echo "#endif" >> $(IMAGES_HPP)
 

@@ -26,6 +26,9 @@ enum class jjybit_t : uint8_t {
 #define JJY_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define JJY_CLIP(min, max, val) (JJY_MAX((min), JJY_MIN((max), (val))))
 
+#define JJY_CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
+#define JJY_ROUND_DIV(a, b) (((a) + (b) / 2) / (b))
+
 template<typename T>
 static constexpr T gcd(const T a, const T b) { return (b == 0) ? a : gcd(b, a % b); }
 

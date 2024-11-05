@@ -76,15 +76,8 @@ void core1_main() {
             lcd_demo_render(lcd, t_now_ms);
 #else
             render_gain_meter(t_now_ms, 0, 0);
-            render_quarity_meter(t_now_ms, 0, 22);
-            {
-                const int x0 = 40;
-                const int y0 = 0;
-                //lcd.fill_rect(sx0 - 1, y0, 17, 6, pen_t::BLACK);
-                lcd.draw_string(bmpfont::font5, x0 + 4, y0, "PHASE");
-                rader.render(t_now_ms, x0 + Rader::RADIUS, y0 + 6 + Rader::RADIUS, lcd, sts);
-            }
-            
+            render_quarity_meter(t_now_ms, 0, 18);
+            rader.render(t_now_ms, 40, 0, lcd, sts);
             render_sync_status(t_now_ms);
 #endif
             lcd.commit();

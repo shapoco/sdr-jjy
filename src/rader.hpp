@@ -36,6 +36,7 @@ public:
         int curr_phase = (sts.rf.timestamp_ms % 1000) * WAVEFORM_PERIOD / 1000;
         //int32_t curr_val = FXP_CLIP(0, fxp12::ONE, sts.rf.det_anl_out_norm * fxp12::ONE / jjy::ONE);
         int32_t curr_val = FXP_CLIP(0, fxp12::ONE, (sts.rf.det_anl_out_norm + jjy::ONE * 2 / 10) * fxp12::ONE / (jjy::ONE * 14 / 10));
+        //int32_t curr_val = FXP_CLIP(0, fxp12::ONE, (sts.rf.det_anl_out_beat_det + jjy::ONE * 2 / 10) * fxp12::ONE / (jjy::ONE * 14 / 10));
 
 #ifdef RADER_MINMAX_MODE
         if (curr_phase != last_phase) {
@@ -57,13 +58,17 @@ public:
 #endif
     }
 
-    void render(uint32_t t_now_ms, int cx, int cy, JjyLcd &lcd, const receiver_status_t &sts) {
+    void render(uint32_t t_now_ms, int rx0, int ry0, JjyLcd &lcd, const receiver_status_t &sts) {
         int32_t delay_phase = (sts.rf.anti_chat_delay_ms + sts.rf.det_delay_ms) * jjy::PHASE_PERIOD / 1000; // 検波器の遅延
         int32_t goal_phase_offset = jjy::phase_add(sts.sync.phase_offset, -delay_phase);
         jjy::phase_follow(&disp_phase_offset, goal_phase_offset, jjy::ONE / 16);
 
-        int32_t cxf = cx * fxp12::ONE;
-        int32_t cyf = cy * fxp12::ONE;
+        int cx = rx0 + RADIUS;
+        int cy = ry0 + 6 + RADIUS;
+        int cxf = cx * fxp12::ONE;
+        int cyf = cy * fxp12::ONE;
+
+        lcd.draw_string(bmpfont::font5, rx0 + 4, ry0, "PHASE");
 
         // 波形描画
 #ifdef RADER_MINMAX_MODE
@@ -116,10 +121,16 @@ public:
         {
             constexpr int W_MIN = 2 * fxp12::ONE;
             constexpr int W_RANGE = RADIUS * fxp12::ONE * 3 / 4 - W_MIN;
-            int32_t val = FXP_CLIP(0, fxp12::ONE, (sts.rf.det_anl_out_norm + jjy::ONE * 8 / 100) * fxp12::ONE / (jjy::ONE * 116 / 100));
             //int32_t val = FXP_CLIP(0, fxp12::ONE, sts.rf.det_anl_out_norm * fxp12::ONE / jjy::ONE);
+            //int32_t val = FXP_CLIP(0, fxp12::ONE, (sts.rf.det_anl_out_norm + jjy::ONE * 8 / 100) * fxp12::ONE / (jjy::ONE * 116 / 100));
+            int32_t val = FXP_CLIP(0, fxp12::ONE, (sts.rf.det_anl_out_beat_det + jjy::ONE * 8 / 100) * fxp12::ONE / (jjy::ONE * 116 / 100));
             int w = W_MIN + val * W_RANGE / fxp12::ONE;
             lcd.fill_ellipse_f(cx * fxp12::ONE - w / 2, cy * fxp12::ONE - w / 2, w, w, pen_t::WHITE);
+        }
+
+        // うなり検出状態
+        if (sts.rf.beat_detected) {
+            lcd.draw_bitmap(rx0 - 7, cy + RADIUS - 7, bmp_icon_beat);
         }
     }
 

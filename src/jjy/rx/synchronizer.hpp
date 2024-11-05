@@ -36,10 +36,10 @@ private:
     static constexpr int LOCK_WAIT_TIME_MS = 1024 * 5;
     static constexpr int SCORE_MAX = 10;
     static constexpr uint32_t BITDET_SREG_INITVAL = 0x55555555;
-    static constexpr int BITDET_NUM_SLOTS = 10;
+    static constexpr int BITDET_NUM_SLOTS = 6;
     static constexpr int BITDET_OK_THRESH = 10;
 
-    static constexpr int BITDET_QTY_HISTORY_SIZE = 4;
+    static constexpr int BITDET_QTY_HISTORY_SIZE = 6;
 
     int32_t bitdet_qty_history[BITDET_QTY_HISTORY_SIZE];
     int bitdet_qty_history_index = 0;
@@ -184,9 +184,15 @@ public:
     }
 
     bool detect_bit(uint8_t in, int32_t phase, jjybit_t *out) {
-        // ビット検出
         int32_t bit_phase = phase_add(phase, -status.phase_offset);
-        int32_t slot = bit_phase * BITDET_NUM_SLOTS / PHASE_PERIOD;
+        int slot =
+            (bit_phase < PHASE_PERIOD * 20 / 100) ? 0 :
+            (bit_phase < PHASE_PERIOD * 35 / 100) ? 1 :
+            (bit_phase < PHASE_PERIOD * 50 / 100) ? 2 :
+            (bit_phase < PHASE_PERIOD * 65 / 100) ? 3 :
+            (bit_phase < PHASE_PERIOD * 80 / 100) ? 4 :
+            5; 
+
         bool slot_changed = slot != bitdet_last_slot;
         bool slot_unexp_change = slot_changed && (slot != (bitdet_last_slot + 1) % BITDET_NUM_SLOTS);
         bitdet_last_slot = slot;
@@ -212,9 +218,9 @@ public:
             jjybit_t out_value;
             if (out_enable) {
                 switch (bitdet_sreg) {
-                case 0b1100000000: out_value = jjybit_t::MARKER; break;
-                case 0b1111100000: out_value = jjybit_t::ONE; break;
-                case 0b1111111100: out_value = jjybit_t::ZERO; break;
+                case 0b100000: out_value = jjybit_t::MARKER; break;
+                case 0b111000: out_value = jjybit_t::ONE; break;
+                case 0b111110: out_value = jjybit_t::ZERO; break;
                 default: out_value = jjybit_t::ERROR; break;
                 }
 
@@ -231,7 +237,7 @@ public:
             }
             *out = out_value;
 
-            if (slot == 0 || slot == 2 || slot == 5 || slot == 8) {
+            if (slot == 0 || slot == 1 || slot == 3 || slot == 5) {
                 bitdet_qty_history[bitdet_qty_history_index] = JJY_ABS(bitdet_hi_count - bitdet_lo_count) * ONE / (bitdet_hi_count + bitdet_lo_count);
                 bitdet_qty_history_index = (bitdet_qty_history_index + 1) % BITDET_QTY_HISTORY_SIZE; 
 

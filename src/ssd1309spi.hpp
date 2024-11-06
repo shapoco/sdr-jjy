@@ -341,7 +341,7 @@ public:
     }
 
     void draw_bitmap(int dx0, int dy0, const uint8_t *src, int sx0, int sy0, int w, int h, int sstride) {
-        const uint8_t *line_ptr = src + sy0 * sstride + sx0;
+        const uint8_t *line_ptr = src + sy0 * sstride + sx0 / 8;
         for (int y = 0; y < h; y++) {
             int dy = dy0 + y;
             const uint8_t *rd_ptr = line_ptr;

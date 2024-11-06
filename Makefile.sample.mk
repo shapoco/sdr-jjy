@@ -15,6 +15,7 @@ IMAGES_HPP = src/images/images.hpp
 IMAGES_SRC_LIST = $(wildcard bmp/*.*)
 IMAGES_CPP_GEN_CMD = ./gen_bmp_array.py
 
+FONT4_NAME = font4
 FONT5_NAME = font5
 FONT16_NAME = font16
 
@@ -25,10 +26,12 @@ FONT_BMP_DIR = bmp
 FONT_CPP_GEN_CMD = ./gen_font_array.py
 
 FONT_HPP_LIST = \
+	$(FONT_SRC_DIR)/$(FONT4_NAME).hpp \
 	$(FONT_SRC_DIR)/$(FONT5_NAME).hpp \
 	$(FONT_SRC_DIR)/$(FONT16_NAME).hpp
 
 FONT_CPP_LIST = \
+	$(FONT_SRC_DIR)/$(FONT4_NAME).cpp \
 	$(FONT_SRC_DIR)/$(FONT5_NAME).cpp \
 	$(FONT_SRC_DIR)/$(FONT16_NAME).cpp
 
@@ -68,6 +71,15 @@ $(IMAGES_CPP): $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
 	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src bmp/icon_beat.png --name bmp_icon_beat
 	@echo >> $(IMAGES_HPP)
 	@echo "#endif" >> $(IMAGES_HPP)
+
+$(FONT_SRC_DIR)/$(FONT4_NAME).hpp : $(FONT_SRC_DIR)/$(FONT4_NAME).cpp $(FONT_BMP_DIR)/$(FONT4_NAME).png
+$(FONT_SRC_DIR)/$(FONT4_NAME).cpp : $(FONT_BMP_DIR)/$(FONT4_NAME).png $(FONT_CPP_GEN_CMD)
+	$(FONT_CPP_GEN_CMD) \
+		--src $< \
+		--name $(FONT4_NAME) \
+		--outdir $(FONT_SRC_DIR) \
+		--incdir $(FONT_INC_DIR) \
+		--code-offset 48
 
 $(FONT_SRC_DIR)/$(FONT5_NAME).hpp : $(FONT_SRC_DIR)/$(FONT5_NAME).cpp $(FONT_BMP_DIR)/$(FONT5_NAME).png
 $(FONT_SRC_DIR)/$(FONT5_NAME).cpp : $(FONT_BMP_DIR)/$(FONT5_NAME).png $(FONT_CPP_GEN_CMD)

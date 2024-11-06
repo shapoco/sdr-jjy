@@ -106,10 +106,11 @@ int main() {
         
         uint32_t t_now_ms = t_now_us / 1000;
 
-        receiver.receive(t_now_ms, dma_buff);
+        receiver.process(t_now_ms, dma_buff);
         
         sts.rf = receiver.rf.get_status();
         sts.sync = receiver.sync.get_status();
+        sts.dec = receiver.dec.get_status();
         glb_receiver_status.store(sts);
 
         // Output

@@ -18,6 +18,7 @@ target_sources(
     src/fixed12.cpp
     src/ssd1390spi.cpp
     src/images/images.cpp
+    src/bmpfont/font4.cpp
     src/bmpfont/font5.cpp
     src/bmpfont/font16.cpp
     src/misc/lcd_demo.cpp

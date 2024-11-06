@@ -12,21 +12,28 @@ class Receiver {
 public:
     Rf rf;
     Synchronizer sync;
+    Decoder dec;
 
     Receiver(uint32_t dma_size) : rf(dma_size) { }
 
     void init(freq_t freq, uint32_t t_now_ms) {
         rf.init(freq, t_now_ms);
         sync.init(t_now_ms);
+        dec.init(t_now_ms);
     }
 
-    void receive(const uint32_t t_now_ms, const uint16_t *samples) {
+    void process(const uint32_t t_now_ms, const uint16_t *samples) {
         // 検波
-        uint8_t signal = rf.detect(t_now_ms, samples);
+        uint8_t signal = rf.process(t_now_ms, samples);
 
         // ビット同期
         jjybit_t bit;
-        bool tick = sync.synchronize(t_now_ms, signal, &bit);
+        bool tick = sync.process(t_now_ms, signal, &bit);
+
+        if (tick) {
+            // デコード
+            dec.process(t_now_ms, bit);
+        }
     }
 };
 

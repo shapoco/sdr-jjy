@@ -28,6 +28,8 @@ typedef struct {
     int32_t bit_det_quality;
     int32_t bit_det_progress;
     bool bit_det_ok;
+    bool out_enable;
+    jjybit_t out_value;
 } sync_status_t;
 
 class Synchronizer {
@@ -105,7 +107,7 @@ public:
         status.bit_det_ok = false;
     }
 
-    bool synchronize(uint32_t t_now_ms, uint8_t in, jjybit_t *out) {
+    bool process(uint32_t t_now_ms, uint8_t in, jjybit_t *out) {
         uint32_t t_delta = t_now_ms - t_last_ms;
         t_last_ms = t_now_ms;
         if (t_delta == 0) return false;
@@ -180,7 +182,10 @@ public:
             }
         }
 
-        return detect_bit(in, phase, out);
+        status.out_enable = detect_bit(in, phase, out);
+        status.out_value = *out;
+
+        return status.out_enable;
     }
 
     bool detect_bit(uint8_t in, int32_t phase, jjybit_t *out) {
@@ -198,6 +203,7 @@ public:
         bitdet_last_slot = slot;
 
         bool out_enable = false;
+        jjybit_t out_value =  jjybit_t::ERROR;
         if (!slot_changed) {
             if (in) bitdet_hi_count += 1;
             else bitdet_lo_count += 1;
@@ -215,7 +221,6 @@ public:
             bitdet_sreg &= (1 << BITDET_NUM_SLOTS) - 1;
 
             out_enable = (slot == 0);
-            jjybit_t out_value;
             if (out_enable) {
                 switch (bitdet_sreg) {
                 case 0b100000: out_value = jjybit_t::MARKER; break;
@@ -235,7 +240,6 @@ public:
                 bitdet_ok_history_index = (bitdet_ok_history_index + 1) % BITDET_OK_THRESH; 
                 bitdet_ok_history_count = JJY_MIN(BITDET_OK_THRESH, bitdet_ok_history_count + 1);
             }
-            *out = out_value;
 
             if (slot == 0 || slot == 1 || slot == 3 || slot == 5) {
                 bitdet_qty_history[bitdet_qty_history_index] = JJY_ABS(bitdet_hi_count - bitdet_lo_count) * ONE / (bitdet_hi_count + bitdet_lo_count);
@@ -284,7 +288,8 @@ public:
             status.bit_det_progress = 0;
         }
 
-        return status.phase_locked && out_enable;
+        *out = out_value;
+        return out_enable && status.phase_locked;
     }
 
     void add_edge(int32_t phase) {

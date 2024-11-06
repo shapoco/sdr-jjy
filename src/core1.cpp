@@ -19,6 +19,7 @@
 
 #include "meter.hpp"
 #include "rader.hpp"
+#include "bit_log_table.hpp"
 
 #include "lazy_timer.hpp"
 
@@ -35,6 +36,7 @@ using pen_t = ssd1309spi::pen_t;
 static Rader rader;
 static Meter amp_meter;
 static Meter quarity_meter;
+static BitLogTable bit_table;
 
 static int32_t gain_meter_scale = fxp12::ONE;
 static int32_t gain_meter_curr = 0;
@@ -46,7 +48,9 @@ static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val);
 static void render_sync_status(uint32_t t_now_ms);
 
 void core1_init() {
+    uint64_t t = to_us_since_boot(get_absolute_time()) / 1000;
     lcd.init();
+    bit_table.init(t);
 }
 
 void core1_main() {
@@ -79,6 +83,7 @@ void core1_main() {
             render_quarity_meter(t_now_ms, 0, 18);
             rader.render(t_now_ms, 40, 0, lcd, sts);
             render_sync_status(t_now_ms);
+            bit_table.render(t_now_ms, lcd, LCD_W - 5 * 10 + 1, 0, sts);
 #endif
             lcd.commit();
         }

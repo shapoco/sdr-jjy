@@ -427,7 +427,7 @@ public:
         status.init(t_now_ms, det_delay_ms, anti_chat_delay_ms);
     }
 
-    uint8_t detect(const uint32_t t_now_ms, const uint16_t *samples) {
+    uint8_t process(const uint32_t t_now_ms, const uint16_t *samples) {
         // AGC
         agc.process(t_now_ms, samples, agc_out, dma_size);
 
@@ -455,7 +455,6 @@ public:
         return out;
     }
 
-    /// @brief 検波器の状態を取得
     const rf_status_t &get_status() const {
         return (const rf_status_t &)status;
     }

@@ -2,7 +2,7 @@
 
 試行錯誤中。
 
-## 構成
+## ハードウェア
 
 恥ずかしながらネットで見つけた構成の切り貼りとカットアンドトライの結果であるため、多分あちこちおかしいと思います。
 
@@ -14,7 +14,7 @@
 
 西日本 (はがね山送信所) の 60kHz に同調するアンテナです。東日本 (おおたかどや山送信所) の 40kHz に同調させるには、L1 の巻数を増やすか、C1 の容量を増やす必要があります。
 
-### 仕様
+### アンテナ仕様
 
 ||ループアンテナ<br>200mm版|ループアンテナ<br>400mm版|ペットボトル版|単位|
 |:--:|:--:|:--:|:--:|:--:|
@@ -31,7 +31,7 @@
 <a href="./images/anetenna_400mm.jpg"><img src="./images/anetenna_400mm.jpg" style="width:auto;height:128px;"></a>
 <a href="./images/anetenna_plastic_bottle.jpg"><img src="./images/anetenna_plastic_bottle.jpg" style="width:auto;height:128px;"></a>
 
-### STL
+### ループアンテナ用 STL
 
 - [loop_antenna_200mm.stl](3dmodel/loop_antenna_200mm.stl)
     - 同じものを 4 個印刷して M3x10 の鍋ネジ x4 で結合

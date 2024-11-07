@@ -19,7 +19,7 @@
 
 #include "meter.hpp"
 #include "rader.hpp"
-#include "bit_log_table.hpp"
+#include "buffer_view.hpp"
 
 #include "lazy_timer.hpp"
 
@@ -36,7 +36,7 @@ using pen_t = ssd1309spi::pen_t;
 static Rader rader;
 static Meter amp_meter;
 static Meter quarity_meter;
-static BitLogTable bit_table;
+static BufferView bit_table;
 
 static int32_t gain_meter_scale = fxp12::ONE;
 static int32_t gain_meter_curr = 0;
@@ -116,7 +116,7 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
         }
     }
 
-    int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc::GOAL_AMPLITUDE * 5 / 4);
+    int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc_Deprecated::GOAL_AMPLITUDE * 5 / 4);
     fxp12::interp(&gain_meter_curr, goal, fxp12::ONE / 2);
     
     lcd.draw_string(bmpfont::font5, x0, y0, "AMP");

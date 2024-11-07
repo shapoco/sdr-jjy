@@ -15,6 +15,8 @@
 
 #include "lazy_timer.hpp"
 
+#define USE_NEW_AGC // todo: 削除
+
 using namespace shapoco; // todo: 削除
 
 namespace jjy::rx {
@@ -69,7 +71,7 @@ public:
     }
 } rf_status_t;
 
-class Agc {
+class Agc_Deprecated {
 public:
     static constexpr int32_t AMPLITUDE_MAX = (1 << (PREC - 1)) - 1;
     static constexpr int32_t AMPLITUDE_MIN = -(1 << (PREC - 1));
@@ -397,51 +399,63 @@ public:
     }
 };
 
+template<int DMA_SIZE>
 class Rf {
 public:
-    const int dma_size;
     const int det_delay_ms;
     const int anti_chat_delay_ms;
-    Agc agc;
+#ifdef USE_NEW_AGC
+    DcBias<DET_SPS / DMA_SIZE, ONE / 2> pre_bias;
+    Agc<DET_SPS, DMA_SIZE, ONE / 2, ONE / 10, ONE * 100> pre_agc;
+#else
+    Agc_Deprecated agc;
+#endif
     QuadDetector det;
     Binarizer bin;
 
 private:
     rf_status_t status;
-    int32_t * const agc_out;
+    int32_t agc_out[DMA_SIZE];
     int agc_out_size = 0;
 
 public:
-    Rf(uint32_t dma_size) :
-        dma_size(dma_size),
-        det_delay_ms(1000 * dma_size / DET_SPS), 
-        anti_chat_delay_ms(det_delay_ms * (AntiChattering::ANTI_CHAT_CYCLES - 1)),
-        agc_out(new int32_t[dma_size]) {}
+    Rf() :
+        det_delay_ms(1000 * DMA_SIZE / DET_SPS), 
+        anti_chat_delay_ms(det_delay_ms * (AntiChattering::ANTI_CHAT_CYCLES - 1)) {}
     
-    ~Rf() { delete[] agc_out; }
-
     void init(freq_t freq, const uint32_t t_now_ms) {
+#ifdef USE_NEW_AGC
+        pre_bias.reset();
+        pre_agc.reset();
+#else
         agc.init(t_now_ms);
+#endif
         det.init(freq, t_now_ms);
         bin.init(t_now_ms);
         status.init(t_now_ms, det_delay_ms, anti_chat_delay_ms);
     }
 
-    uint8_t process(const uint32_t t_now_ms, const uint16_t *samples) {
+    uint8_t process(const uint32_t t_now_ms, const uint16_t *in) {
+#ifdef USE_NEW_AGC
+        preBiasAgc(t_now_ms, in);
+#else
         // AGC
-        agc.process(t_now_ms, samples, agc_out, dma_size);
+        agc.process(t_now_ms, in, agc_out, DMA_SIZE);
+#endif
 
         // 直交検波
-        int32_t det_anl_out_raw = det.process(t_now_ms, agc_out, dma_size);
+        int32_t det_anl_out_raw = det.process(t_now_ms, agc_out, DMA_SIZE);
 
         // フィルター
         uint8_t out = bin.process(t_now_ms, det_anl_out_raw);
 
         // ステータス値更新
         status.timestamp_ms = t_now_ms;
+#ifndef USE_NEW_AGC
         status.adc_amplitude_raw = agc.adc_amplitude_raw;
         status.adc_amplitude_peak = agc.adc_amplitude_peak;
         status.agc_gain = agc.gain;
+#endif
         status.det_anl_out_raw = det_anl_out_raw;
         status.det_anl_out_base = bin.det_base;
         status.det_anl_out_peak = bin.det_peak;
@@ -454,6 +468,29 @@ public:
 
         return out;
     }
+
+#ifdef USE_NEW_AGC
+    void preBiasAgc(uint64_t t_ms, const uint16_t *in) {
+        int32_t ave = 0;
+        int32_t amp = 0;
+        int32_t bias = pre_bias.bias;
+        int32_t gain = 12;
+        for (int i = 0; i < DMA_SIZE; i++) {
+            ave += in[i];
+            amp += JJY_ABS(in[i]);
+            int32_t bias_out = (in[i] - bias) * 12;
+            agc_out[i] = bias_out * 12;
+            //agc_out[i] = pre_agc.process(bias_out);
+        }
+        ave /= DMA_SIZE;
+        amp /= DMA_SIZE;
+        pre_bias.process(ave);
+        
+        status.adc_amplitude_raw = amp;
+        status.adc_amplitude_peak = pre_agc.amplitude_peak;
+        status.agc_gain = pre_agc.gain;
+    }
+#endif
 
     const rf_status_t &get_status() const {
         return (const rf_status_t &)status;

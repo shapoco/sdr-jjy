@@ -8,13 +8,12 @@
 
 namespace jjy::rx {
 
+template<int DMA_SIZE>
 class Receiver {
 public:
-    Rf rf;
+    Rf<DMA_SIZE> rf;
     Synchronizer sync;
     Decoder dec;
-
-    Receiver(uint32_t dma_size) : rf(dma_size) { }
 
     void init(freq_t freq, uint32_t t_now_ms) {
         rf.init(freq, t_now_ms);

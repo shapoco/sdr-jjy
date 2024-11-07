@@ -13,7 +13,7 @@
 
 using pen_t = ssd1309spi::pen_t;
 
-class BitLogTable {
+class BufferView {
 public:
     static constexpr int WIDTH = 50;
     static constexpr int HEIGHT = 40;
@@ -83,7 +83,7 @@ public:
         for (int irow = NUM_ROWS - 1; irow >= 0; irow--) {
             Row &row = rows[irow];
             row.animate(t_now_ms);
-            int cell_x = x0 + row.disp_x + NUM_COLS * CELL_W;
+            int cell_x = x0 + row.disp_x + (NUM_COLS - 1) * CELL_W;
             int row_y = y0 + row.disp_y;
             for (int icol = 0; icol < NUM_COLS; icol++) {
                 cell_x -= CELL_W;
@@ -98,7 +98,7 @@ public:
                     lcd.draw_char(bmpfont::font4, cell_x, row_y, '1');
                 }
                 else if (cell.value == jjy::jjybit_t::MARKER) {
-                    lcd.draw_char(bmpfont::font4, cell_x, row_y, blink ? 'M' : 'm');
+                    lcd.draw_char(bmpfont::font4, cell_x, row_y, 'M');
                 }
                 else {
                     lcd.draw_char(bmpfont::font4, cell_x, row_y, blink ? 'X' : 'x');
@@ -108,11 +108,12 @@ public:
             if (row.has_separator) {
                 lcd.fill_rect(x0, row_y + CELL_H, (NUM_COLS - 1) * CELL_W - 1, 1);
             }
+            
+            lcd.fill_rect(x0 - CELL_W * 2, row_y,  CELL_W * 2, CELL_H, pen_t::BLACK);
+            lcd.fill_rect(x0 + CELL_W * (NUM_COLS - 1), row_y, CELL_W * 2, CELL_H, pen_t::BLACK);
         }
 
         lcd.fill_rect(x0 - CELL_W, y0, WIDTH + CELL_W, TITLE_H, pen_t::BLACK);
-        lcd.fill_rect(x0 - CELL_W, y0 + TITLE_H,  CELL_W, HEIGHT - TITLE_H, pen_t::BLACK);
-        lcd.fill_rect(x0 + CELL_W * (NUM_COLS - 1), y0 + TITLE_H,  CELL_W, HEIGHT - TITLE_H, pen_t::BLACK);
 
         lcd.draw_string(bmpfont::font5, x0, y0, "BUFF");
         if (sts.dec.synced) {
@@ -148,19 +149,19 @@ public:
             bool add_sep = sts.dec.synced && sts.dec.last_bit_index == 0;
             feed_line(t_now_ms, add_sep);
         }
-
         shift_in(t_now_ms, sts.dec.last_bit_value);
-
     }
 
     void shift_in(uint64_t t_now_ms, jjy::jjybit_t in) {
-        memcpy(rows[NUM_ROWS - 1].cells, rows[NUM_ROWS - 1].cells + 1, sizeof(cell_t) * (NUM_COLS - 1));
         Row &row = rows[NUM_ROWS - 1];
-        cell_t &cell = row.cells[NUM_COLS - 1];
+        for (int icol = NUM_COLS - 1; icol >= 1; icol--) {
+            row.cells[icol] = row.cells[icol - 1];
+        }
+        cell_t &cell = row.cells[0];
         cell.clear(t_now_ms);
         cell.value = in;
         cell.valid = true;
-        row.disp_x = -CELL_W + 1;
+        row.disp_x = CELL_W - 1;
     }
 
     void feed_line(uint64_t t_ms, bool add_separator) {

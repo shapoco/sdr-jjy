@@ -34,7 +34,7 @@ static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
 static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 
 DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
-jjy::rx::Receiver receiver(DMA_SIZE);
+jjy::rx::Receiver<DMA_SIZE> receiver;
 
 atomic<receiver_status_t> glb_receiver_status;
 

@@ -17,6 +17,7 @@ IMAGES_CPP_GEN_CMD = ./gen_bmp_array.py
 
 FONT4_NAME = font4
 FONT5_NAME = font5
+FONT12_NAME = font12
 FONT16_NAME = font16
 
 FONT_INC_DIR = bmpfont
@@ -28,11 +29,13 @@ FONT_CPP_GEN_CMD = ./gen_font_array.py
 FONT_HPP_LIST = \
 	$(FONT_SRC_DIR)/$(FONT4_NAME).hpp \
 	$(FONT_SRC_DIR)/$(FONT5_NAME).hpp \
+	$(FONT_SRC_DIR)/$(FONT12_NAME).hpp \
 	$(FONT_SRC_DIR)/$(FONT16_NAME).hpp
 
 FONT_CPP_LIST = \
 	$(FONT_SRC_DIR)/$(FONT4_NAME).cpp \
 	$(FONT_SRC_DIR)/$(FONT5_NAME).cpp \
+	$(FONT_SRC_DIR)/$(FONT12_NAME).cpp \
 	$(FONT_SRC_DIR)/$(FONT16_NAME).cpp
 
 SRC_LIST=\
@@ -79,7 +82,7 @@ $(FONT_SRC_DIR)/$(FONT4_NAME).cpp : $(FONT_BMP_DIR)/$(FONT4_NAME).png $(FONT_CPP
 		--name $(FONT4_NAME) \
 		--outdir $(FONT_SRC_DIR) \
 		--incdir $(FONT_INC_DIR) \
-		--code-offset 48
+		--code-offset 32
 
 $(FONT_SRC_DIR)/$(FONT5_NAME).hpp : $(FONT_SRC_DIR)/$(FONT5_NAME).cpp $(FONT_BMP_DIR)/$(FONT5_NAME).png
 $(FONT_SRC_DIR)/$(FONT5_NAME).cpp : $(FONT_BMP_DIR)/$(FONT5_NAME).png $(FONT_CPP_GEN_CMD)
@@ -89,6 +92,16 @@ $(FONT_SRC_DIR)/$(FONT5_NAME).cpp : $(FONT_BMP_DIR)/$(FONT5_NAME).png $(FONT_CPP
 		--outdir $(FONT_SRC_DIR) \
 		--incdir $(FONT_INC_DIR) \
 		--code-offset 32
+
+$(FONT_SRC_DIR)/$(FONT12_NAME).hpp : $(FONT_SRC_DIR)/$(FONT12_NAME).cpp $(FONT_BMP_DIR)/$(FONT12_NAME).png
+$(FONT_SRC_DIR)/$(FONT12_NAME).cpp : $(FONT_BMP_DIR)/$(FONT12_NAME).png $(FONT_CPP_GEN_CMD)
+	$(FONT_CPP_GEN_CMD) \
+		--src $< \
+		--name $(FONT12_NAME) \
+		--outdir $(FONT_SRC_DIR) \
+		--incdir $(FONT_INC_DIR) \
+		--code-offset 32 \
+		--spacing 1
 
 $(FONT_SRC_DIR)/$(FONT16_NAME).hpp : $(FONT_SRC_DIR)/$(FONT16_NAME).cpp $(FONT_BMP_DIR)/$(FONT16_NAME).png
 $(FONT_SRC_DIR)/$(FONT16_NAME).cpp : $(FONT_BMP_DIR)/$(FONT16_NAME).png $(FONT_CPP_GEN_CMD)

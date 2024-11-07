@@ -15,8 +15,12 @@ using pen_t = ssd1309spi::pen_t;
 
 class BitLogTable {
 public:
-    static constexpr int COLS = 11;
-    static constexpr int ROWS = 7;
+    static constexpr int WIDTH = 50;
+    static constexpr int HEIGHT = 40;
+
+    static constexpr int TITLE_H = 6;
+    static constexpr int NUM_COLS = 11;
+    static constexpr int NUM_ROWS = 7;
     static constexpr int CELL_W = 4;
     static constexpr int CELL_H = 5;
 
@@ -30,19 +34,40 @@ public:
         }
     };
 
+    struct Row {
+        cell_t cells[NUM_COLS];
+        int goal_x = 0, goal_y = 0;
+        int disp_x = 0, disp_y = 0;
+        bool has_separator;
+
+        void clear(uint64_t t_ms, int irow) {
+            for (int i = 0; i < NUM_COLS; i++) {
+                cells[i].clear(t_ms);
+            }
+            goal_x = disp_x = 0;
+            goal_y = disp_y = irow * CELL_H;
+            has_separator = false;
+        }
+
+        void animate(uint64_t t_ms) {
+            if (disp_x < goal_x) disp_x++;
+            else if (disp_x > goal_x) disp_x--;
+            if (disp_y < goal_y) disp_y++;
+            else if (disp_y > goal_y) disp_y--;
+        }
+    };
+    
+
 private:
-    cell_t cells[COLS * ROWS];
+    Row rows[NUM_ROWS];
     bool last_toggle = true;
-    int x_shift = 0;
-    int y_shift = 0;
 
 public:
     void init(uint64_t t_now_ms) {
-        for (int i = 0; i < COLS * ROWS; i++) {
-            cells[i].valid = false;
+        for (int irow = 0; irow < NUM_ROWS; irow++) {
+            rows[irow].clear(t_now_ms, irow);
         }
-        x_shift = 0;
-        y_shift = 0;
+        layout_rows();
     }
 
     void render(uint64_t t_now_ms, JjyLcd &lcd, int x0, int y0, const receiver_status_t &sts) {
@@ -55,55 +80,51 @@ public:
 
         bool blink = jjy::phase_add(sts.sync.phase_cursor, -sts.sync.phase_offset) < jjy::PHASE_PERIOD / 2;
 
-        for (int row = 0; row < ROWS; row++) {
-            int y = y0 + 6 + (row - 1) * CELL_H + y_shift;
-            int x = x0 + COLS * CELL_W;
-            if (row == ROWS - 1) x -= x_shift;
-            for (int col = 0; col < COLS; col++) {
-                x -= CELL_W;
-                if (col == 0 && (row != ROWS - 1 || x_shift == 0)) continue;
-                const cell_t &cell = cells[row * COLS + col];
-                if (!cell.valid) continue;
-
-                switch (cell.value) {
-                case jjy::jjybit_t::ZERO:
-                    lcd.draw_char(bmpfont::font4, x, y, '0');
-                    break;
-
-                case jjy::jjybit_t::ONE:
-                    lcd.draw_char(bmpfont::font4, x, y, '1');
-                    break;
-
-                case jjy::jjybit_t::MARKER:
-                    lcd.draw_char(bmpfont::font4, x, y, blink ? 'M' : 'N');
-                    break;
-
-                case jjy::jjybit_t::ERROR:
-                default:
-                    if (blink) lcd.draw_char(bmpfont::font4, x, y, 'E');
-                    break;
+        for (int irow = NUM_ROWS - 1; irow >= 0; irow--) {
+            Row &row = rows[irow];
+            row.animate(t_now_ms);
+            int cell_x = x0 + row.disp_x + NUM_COLS * CELL_W;
+            int row_y = y0 + row.disp_y;
+            for (int icol = 0; icol < NUM_COLS; icol++) {
+                cell_x -= CELL_W;
+                const cell_t &cell = row.cells[icol];
+                if (!cell.valid) {
+                    lcd.draw_char(bmpfont::font4, cell_x, row_y, '.');
                 }
+                else if (cell.value == jjy::jjybit_t::ZERO) {
+                    lcd.draw_char(bmpfont::font4, cell_x, row_y, '0');
+                }
+                else if (cell.value == jjy::jjybit_t::ONE) {
+                    lcd.draw_char(bmpfont::font4, cell_x, row_y, '1');
+                }
+                else if (cell.value == jjy::jjybit_t::MARKER) {
+                    lcd.draw_char(bmpfont::font4, cell_x, row_y, blink ? 'M' : 'm');
+                }
+                else {
+                    lcd.draw_char(bmpfont::font4, cell_x, row_y, blink ? 'X' : 'x');
+                }
+            }
+
+            if (row.has_separator) {
+                lcd.fill_rect(x0, row_y + CELL_H, (NUM_COLS - 1) * CELL_W - 1, 1);
             }
         }
 
-        x_shift = FXP_MAX(0, x_shift - 1);
-        y_shift = FXP_MAX(0, y_shift - 1);
+        lcd.fill_rect(x0 - CELL_W, y0, WIDTH + CELL_W, TITLE_H, pen_t::BLACK);
+        lcd.fill_rect(x0 - CELL_W, y0 + TITLE_H,  CELL_W, HEIGHT - TITLE_H, pen_t::BLACK);
+        lcd.fill_rect(x0 + CELL_W * (NUM_COLS - 1), y0 + TITLE_H,  CELL_W, HEIGHT - TITLE_H, pen_t::BLACK);
 
-        lcd.fill_rect(x0 -CELL_W, y0,  CELL_W * (COLS + 2), 6, pen_t::BLACK);
-        lcd.draw_string(bmpfont::font5, x0, y0, "DATA");
+        lcd.draw_string(bmpfont::font5, x0, y0, "BUFF");
         if (sts.dec.synced) {
             sprintf(s, "%d", sts.dec.last_bit_index);
             lcd.draw_string(bmpfont::font5, x0 + 30, y0, s);
         }
 
+#if 0
         {
-            int y = y0 + ROWS * CELL_H;
+            int y = y0 + HEIGHT + 2;
 
             sprintf(s, "synced=%d", sts.dec.synced ? 1 : 0);
-            lcd.draw_string(bmpfont::font5, x0, y, s);
-            y += 6;
-
-            sprintf(s, "num_mkr=%d", sts.dec.num_marker_found);
             lcd.draw_string(bmpfont::font5, x0, y, s);
             y += 6;
 
@@ -116,14 +137,16 @@ public:
             lcd.draw_string(bmpfont::font5, x0, y, s);
             y += 6;
         }
+#endif
     }
 
     void update_table(uint64_t t_now_ms, const receiver_status_t &sts) {
         bool feed = 
-            (sts.dec.last_action == jjy::rx::Decoder::action_t::SYNC_FINISH) ||
+            (sts.dec.last_action == jjy::rx::Decoder::action_t::SYNC_MARKER) ||
             (sts.dec.last_action == jjy::rx::Decoder::action_t::TICK_CONTINUE && sts.dec.last_bit_index % 10 == 0);
         if (feed) {
-            feed_line(t_now_ms);
+            bool add_sep = sts.dec.synced && sts.dec.last_bit_index == 0;
+            feed_line(t_now_ms, add_sep);
         }
 
         shift_in(t_now_ms, sts.dec.last_bit_value);
@@ -131,22 +154,37 @@ public:
     }
 
     void shift_in(uint64_t t_now_ms, jjy::jjybit_t in) {
-        memcpy(&cells[(ROWS - 1) * COLS], &cells[(ROWS - 1) * COLS + 1], sizeof(cell_t) * (COLS - 1));
-        cell_t &new_cell = cells[ROWS * COLS - 1];
-        new_cell.clear(t_now_ms);
-        new_cell.value = in;
-        new_cell.valid = true;
-        x_shift = CELL_W - 1;
+        memcpy(rows[NUM_ROWS - 1].cells, rows[NUM_ROWS - 1].cells + 1, sizeof(cell_t) * (NUM_COLS - 1));
+        Row &row = rows[NUM_ROWS - 1];
+        cell_t &cell = row.cells[NUM_COLS - 1];
+        cell.clear(t_now_ms);
+        cell.value = in;
+        cell.valid = true;
+        row.disp_x = -CELL_W + 1;
     }
 
-    void feed_line(uint64_t t_now_ms) {
-        for (int row = 1; row < ROWS; row++) {
-            memcpy(&cells[(row - 1) * COLS], &cells[row * COLS], sizeof(cell_t) * COLS);
+    void feed_line(uint64_t t_ms, bool add_separator) {
+        for (int irow = 0; irow < NUM_ROWS - 1; irow++) {
+            rows[irow] = rows[irow + 1];
         }
-        for (int col = 0; col < COLS; col++) {
-            cells[(ROWS - 1) * COLS + col].clear(t_now_ms);
+        rows[NUM_ROWS - 2].has_separator = add_separator;
+        rows[NUM_ROWS - 1].clear(t_ms, NUM_ROWS - 1);
+        layout_rows();
+    }
+
+    void layout_rows() {
+        int y = HEIGHT - CELL_H + 1;
+        for (int irow = NUM_ROWS - 1; irow >= 0; irow--) {
+            Row &row = rows[irow];
+            if (irow < NUM_ROWS - 1 && row.has_separator) {
+                y -= 2;
+            }
+            row.goal_y = y;
+            if (irow == NUM_ROWS - 1) {
+                row.disp_y = y;
+            }
+            y -= CELL_H;
         }
-        y_shift = CELL_H - 1;
     }
     
 };

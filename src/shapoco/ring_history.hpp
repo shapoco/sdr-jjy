@@ -1,10 +1,12 @@
-#ifndef RING_STAT_HPP
-#define RING_STAT_HPP
+#ifndef SHAPOCO_RING_HISTORY_HPP
+#define SHAPOCO_RING_HISTORY_HPP
 
 #include <stdint.h>
 
+namespace shapoco {
+
 template<typename T, int PERIOD>
-class RingStat {
+class RingHistory {
 private:
     T _history[PERIOD];
     int _cursor = 0;
@@ -69,5 +71,7 @@ public:
     }
 
 };
+
+}
 
 #endif

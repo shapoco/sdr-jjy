@@ -16,10 +16,12 @@ add_executable(pico2_jjy_receiver)
 target_sources(
     pico2_jjy_receiver PRIVATE 
     src/fixed12.cpp
+    src/jjy/datetime.cpp
     src/ssd1390spi.cpp
     src/images/images.cpp
     src/bmpfont/font4.cpp
     src/bmpfont/font5.cpp
+    src/bmpfont/font12.cpp
     src/bmpfont/font16.cpp
     src/misc/lcd_demo.cpp
     src/core0.cpp

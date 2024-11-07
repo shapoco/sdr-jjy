@@ -16,6 +16,9 @@ public:
     static constexpr int RADIUS = 16;
     static constexpr int DIAMETER = RADIUS * 2;
 
+    static constexpr int WIDTH = DIAMETER;
+    static constexpr int HEIGHT = DIAMETER + 6;
+
 private:
     static constexpr int WAVEFORM_PERIOD = 1 << 7;
     static constexpr int WAVEFORM_BASE = RADIUS / 2;
@@ -130,7 +133,7 @@ public:
 
         // うなり検出状態
         if (sts.rf.beat_detected) {
-            lcd.draw_bitmap(rx0 - 7, cy + RADIUS - 7, bmp_icon_beat);
+            lcd.draw_bitmap(rx0 - 6, HEIGHT - 7, bmp_icon_beat);
         }
     }
 

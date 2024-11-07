@@ -18,74 +18,64 @@ namespace jjy::rx {
 
 class Decoder {
 public:
-    static constexpr int NUM_PRE_SYNC = 3;
+    static constexpr int INITIAL_BIT_INDEX = 59;
 
     enum class action_t {
-        UNLOCK,
+        ABORT,
+        SYNC_POS_MARKER,
         SYNC_MARKER,
-        SYNC_CONTINUE,
-        SYNC_FINISH,
         TICK_CONTINUE,
         TICK_WRAP,
     };
 
     struct status_t {
         bool toggle = false;
-        action_t last_action;
-        int num_marker_found;    
         bool synced;
+        action_t last_action;
         int last_bit_index;
         jjybit_t last_bit_value;
+        JjyDateTime last_date_time;
+        ParseResut last_parse_result;
 
         void init(uint32_t t_now_ms) {
-            last_action = action_t::UNLOCK;
-            num_marker_found = 0;
+            last_action = action_t::ABORT;
             synced = false;
             last_bit_index = 0;
             last_bit_value = jjybit_t::ERROR;
+            last_parse_result.flags = ParseResut::EMPTY;
         }
     };
 
 private:
     status_t sts;
-    int bit_index;
+    jjybit_t rxBuff[60];
+    int bit_index = INITIAL_BIT_INDEX;
 
 public:
 
     void init(uint32_t t_now_ms) {
         sts.init(t_now_ms);
-        bit_index = 0;
+        memset(rxBuff, (int)jjybit_t::ERROR, sizeof(jjybit_t) * 60);
+        bit_index = INITIAL_BIT_INDEX;
     }
 
     action_t process(uint32_t t_now_ms, jjybit_t in) {
-        action_t new_action = action_t::UNLOCK;
+        action_t new_action = action_t::ABORT;
         
         sts.last_bit_index = bit_index;
 
         if (in == jjybit_t::ERROR) {
-            new_action = action_t::UNLOCK;
+            new_action = action_t::ABORT;
         }
         else if (!sts.synced) {
-            if (sts.num_marker_found == 0 && in == jjybit_t::MARKER) {
-                new_action = action_t::SYNC_MARKER;
+            if (bit_index == INITIAL_BIT_INDEX && in == jjybit_t::MARKER) {
+                new_action = action_t::SYNC_POS_MARKER;
             }
-            else if (bit_index == 0 && sts.num_marker_found >= NUM_PRE_SYNC && in == jjybit_t::MARKER) {
-                new_action = action_t::SYNC_FINISH;
-            }
-            else if (bit_index == 0) {
-                new_action = action_t::SYNC_CONTINUE;
-            }
-            else if (bit_index == 8 && sts.num_marker_found == 1 && in == jjybit_t::MARKER) {
-                new_action = action_t::SYNC_MARKER;
-            }
-            else if (bit_index < 9 && in != jjybit_t::MARKER) {
-                new_action = action_t::SYNC_CONTINUE;
-            }
-            else if (bit_index == 9 && in == jjybit_t::MARKER) {
+            else if (bit_index == 0 && in == jjybit_t::MARKER) {
                 new_action = action_t::SYNC_MARKER;
             }
             else {
-                new_action = action_t::UNLOCK;
+                new_action = action_t::ABORT;
             }
         }
         else {
@@ -104,25 +94,19 @@ public:
                 new_action = action_t::TICK_CONTINUE;
             }
             else {
-                new_action = action_t::UNLOCK;
+                new_action = action_t::ABORT;
             }
         }
 
         bool accept = false;
 
         switch(new_action) {
-        case action_t::SYNC_MARKER:
+        case action_t::SYNC_POS_MARKER:
             bit_index = 0;
             sts.synced = false;
-            sts.num_marker_found += 1;
             break;
 
-        case action_t::SYNC_CONTINUE:
-            bit_index += 1;
-            sts.synced = false;
-            break;
-        
-        case action_t::SYNC_FINISH:
+        case action_t::SYNC_MARKER:
             bit_index = 1;
             sts.synced = true;
             accept = true;
@@ -140,12 +124,19 @@ public:
             accept = true;
             break;
 
-        case action_t::UNLOCK:
+        case action_t::ABORT:
         default:
-            bit_index = 0;
+            bit_index = INITIAL_BIT_INDEX;
             sts.synced = false;
-            sts.num_marker_found = 0;
             break;
+        }
+
+        if (accept && 0 <= sts.last_bit_index && sts.last_bit_index < 60) {
+            rxBuff[sts.last_bit_index] = in;
+            if (new_action == action_t::TICK_WRAP) {
+                sts.last_parse_result = sts.last_date_time.parse(rxBuff, 2000);
+                sts.last_date_time.addSecond(60);
+            }
         }
 
         sts.last_bit_value = in;

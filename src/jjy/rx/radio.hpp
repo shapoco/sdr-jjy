@@ -9,11 +9,11 @@
 
 #include "shapoco/ring_scope.hpp"
 #include "shapoco/peak_hold.hpp"
+#include "shapoco/ring_history.hpp"
 
 #include "jjy/common.hpp"
 
 #include "lazy_timer.hpp"
-#include "ring_stat.hpp"
 
 using namespace shapoco; // todo: 削除
 
@@ -86,7 +86,7 @@ public:
 
 private:
     LazyTimer<uint32_t, AMP_HISTORY_STEP_MS> gain_update_timer;
-    RingStat<int32_t, AMP_HISTORY_SIZE> amp_history;
+    RingHistory<int32_t, AMP_HISTORY_SIZE> amp_history;
     int32_t accum_amp_peak;
 
 public:
@@ -262,8 +262,8 @@ public:
 private:
     int32_t accum_base;
     int32_t accum_peak;
-    RingStat<int32_t, PEAK_HISTORY_SIZE> base_history;
-    RingStat<int32_t, PEAK_HISTORY_SIZE> peak_history;
+    RingHistory<int32_t, PEAK_HISTORY_SIZE> base_history;
+    RingHistory<int32_t, PEAK_HISTORY_SIZE> peak_history;
 
     AntiChattering anti_chat_before_smooth;
     AntiChattering anti_chat_after_smooth;
@@ -277,7 +277,7 @@ private:
     int32_t accum_quality_value;
     int accum_quality_count;
     LazyTimer<uint32_t, QUARITY_HISTORY_STEP_MS> quality_history_update_timer;
-    RingStat<int32_t, QUARITY_HISTORY_SIZE> quality_history;
+    RingHistory<int32_t, QUARITY_HISTORY_SIZE> quality_history;
 
 public:
     void init(uint32_t t_now_ms) {

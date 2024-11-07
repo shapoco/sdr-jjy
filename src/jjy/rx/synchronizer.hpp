@@ -8,6 +8,7 @@
 
 #include "jjy/common.hpp"
 #include "lazy_timer.hpp"
+#include "shapoco/ring_history.hpp"
 
 namespace jjy::rx {
 
@@ -26,8 +27,6 @@ typedef struct {
     bool phase_locked;
     int32_t phase_lock_progress;
     int32_t bit_det_quality;
-    int32_t bit_det_progress;
-    bool bit_det_ok;
     bool out_enable;
     jjybit_t out_value;
 } sync_status_t;
@@ -41,14 +40,8 @@ private:
     static constexpr int BITDET_NUM_SLOTS = 6;
     static constexpr int BITDET_OK_THRESH = 10;
 
-    static constexpr int BITDET_QTY_HISTORY_SIZE = 6;
-
-    int32_t bitdet_qty_history[BITDET_QTY_HISTORY_SIZE];
-    int bitdet_qty_history_index = 0;
-
-    uint8_t bitdet_ok_history[BITDET_OK_THRESH];
-    int bitdet_ok_history_index = 0;
-    int bitdet_ok_history_count = 0;
+    static constexpr int BITDET_QTY_HISTORY_SIZE = BITDET_NUM_SLOTS;
+    RingHistory<int32_t, BITDET_QTY_HISTORY_SIZE> qty_history;
 
     LazyTimer<uint32_t, 1000> cand_update_timer;
     LazyTimer<uint32_t, CAND_EXPIRE_TIME_MS, false> cand_expire_timer;
@@ -66,7 +59,6 @@ public:
     int bitdet_hi_count = 0;
     int bitdet_lo_count = 0;
     uint32_t bitdet_sreg = BITDET_SREG_INITVAL;
-    int bitdet_ok_count = 0;
 
     void init(uint32_t t_now_ms) {
         t_last_ms = t_now_ms;
@@ -81,18 +73,8 @@ public:
         bitdet_hi_count = 0;
         bitdet_lo_count = 0;
         bitdet_sreg = BITDET_SREG_INITVAL;
-        bitdet_ok_count = 0;
 
-        for (int i = 0; i < BITDET_QTY_HISTORY_SIZE; i++) {
-            bitdet_qty_history[i] = 0;
-        }
-        bitdet_qty_history_index = 0;
-
-        for (int i = 0; i < BITDET_OK_THRESH; i++) {
-            bitdet_ok_history[i] = 0;
-        }
-        bitdet_ok_history_index = 0;
-        bitdet_ok_history_count = 0;
+        qty_history.clear(0);
 
         for (int i = 0; i < NUM_PHASE_CANDS; i++) {
             status.phase_cands[i].valid = false;
@@ -103,8 +85,6 @@ public:
         status.phase_locked = false;
         status.phase_lock_progress = 0;
         status.bit_det_quality = 0;
-        status.bit_det_progress = 0;
-        status.bit_det_ok = false;
     }
 
     bool process(uint32_t t_now_ms, uint8_t in, jjybit_t *out) {
@@ -220,6 +200,9 @@ public:
             bitdet_sreg |= hi;
             bitdet_sreg &= (1 << BITDET_NUM_SLOTS) - 1;
 
+            qty_history.push(JJY_ABS(bitdet_hi_count - bitdet_lo_count) * ONE / (bitdet_hi_count + bitdet_lo_count));
+            status.bit_det_quality = qty_history.ave();
+
             out_enable = (slot == 0);
             if (out_enable) {
                 switch (bitdet_sreg) {
@@ -228,64 +211,10 @@ public:
                 case 0b111110: out_value = jjybit_t::ZERO; break;
                 default: out_value = jjybit_t::ERROR; break;
                 }
-
-                if (out_value == jjybit_t::ERROR) {
-                    bitdet_ok_count = 0;
-                } 
-                else {
-                    bitdet_ok_count = JJY_MIN(BITDET_OK_THRESH, bitdet_ok_count + 1);
-                }
-
-                bitdet_ok_history[bitdet_ok_history_index] = (out_value == jjybit_t::ERROR) ? 0 : 1;
-                bitdet_ok_history_index = (bitdet_ok_history_index + 1) % BITDET_OK_THRESH; 
-                bitdet_ok_history_count = JJY_MIN(BITDET_OK_THRESH, bitdet_ok_history_count + 1);
-            }
-
-            if (slot == 0 || slot == 1 || slot == 3 || slot == 5) {
-                bitdet_qty_history[bitdet_qty_history_index] = JJY_ABS(bitdet_hi_count - bitdet_lo_count) * ONE / (bitdet_hi_count + bitdet_lo_count);
-                bitdet_qty_history_index = (bitdet_qty_history_index + 1) % BITDET_QTY_HISTORY_SIZE; 
-
-                int32_t qty_ave = 0;
-                for (int i = 0; i < BITDET_QTY_HISTORY_SIZE; i++) {
-                    qty_ave += bitdet_qty_history[i];
-                }
-                qty_ave /= BITDET_QTY_HISTORY_SIZE;
-                
-                int32_t ok_rate = 0;
-                if (bitdet_ok_history_count > 0) {
-                    for (int i = 0; i < BITDET_OK_THRESH; i++) {
-                        ok_rate += bitdet_ok_history[i];
-                    }
-                    ok_rate = ok_rate * jjy::ONE / bitdet_ok_history_count;
-                }
-
-                status.bit_det_quality = qty_ave * ok_rate / jjy::ONE;
             }
 
             bitdet_hi_count = 0;
             bitdet_lo_count = 0;
-        }
-
-        status.bit_det_ok = bitdet_ok_count >= BITDET_OK_THRESH;
-        if (status.bit_det_ok) {
-            status.bit_det_progress = ONE;
-        }
-        else if (bitdet_ok_count == 0) {
-            status.bit_det_progress = 0;
-        }
-        else {
-            status.bit_det_progress = (((bitdet_ok_count - 1) * PHASE_PERIOD) + bit_phase) / (BITDET_OK_THRESH - 1);
-        }
-
-        if (!status.phase_locked) {
-            //bitdet_hi_count = 0;
-            //bitdet_lo_count = 0;
-            //bitdet_sreg = 0;
-            //bitdet_quality_accum = 0;
-            //status.bit_det_quality = 0;
-            bitdet_ok_count = 0;
-            status.bit_det_ok = false;
-            status.bit_det_progress = 0;
         }
 
         *out = out_value;

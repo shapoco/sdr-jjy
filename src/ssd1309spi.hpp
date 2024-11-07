@@ -332,11 +332,11 @@ public:
     }
 
     int draw_char(const bmpfont::Font &font, int dx0, int dy0, char c) {
-        if (!font.contains_char(c)) {
-            return 0;
-        }
+        if (!font.contains_char(c)) return 0;
         const bmpfont::CharInfo &ci = font.get_char_info(c);
-        draw_bitmap(dx0, dy0, font.bitmap + ci.offset, 0, 0, ci.width, font.height, (ci.width + 7) / 8);
+        if (!ci.isBlank()) {
+            draw_bitmap(dx0, dy0, font.bitmap + ci.offset, 0, 0, ci.width, font.height, (ci.width + 7) / 8);
+        }
         return ci.width;
     }
 

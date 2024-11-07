@@ -2,7 +2,6 @@
 #define JJY_RX_RADIO_HPP
 
 #include <stdint.h>
-#include <math.h>
 #include <string.h>
 
 #include "pico/stdlib.h"
@@ -12,6 +11,10 @@
 #include "shapoco/ring_history.hpp"
 
 #include "jjy/common.hpp"
+#include "jjy/dc_bias.hpp"
+#include "jjy/agc.hpp"
+#include "jjy/anti_chattering.hpp"
+#include "jjy/rx/quad_detector.hpp"
 
 #include "lazy_timer.hpp"
 
@@ -21,8 +24,6 @@ using namespace shapoco; // todo: 削除
 
 namespace jjy::rx {
 
-static constexpr uint32_t DET_RESO = 1 << 3;   
-static constexpr uint32_t DET_SPS = DET_RESO * 60000;
 
 typedef struct {
 public:
@@ -71,6 +72,7 @@ public:
     }
 } rf_status_t;
 
+#ifndef USE_NEW_AGC
 class Agc_Deprecated {
 public:
     static constexpr int32_t AMPLITUDE_MAX = (1 << (PREC - 1)) - 1;
@@ -141,56 +143,7 @@ public:
     }
     
 };
-
-class QuadDetector {
-public:
-    static constexpr int RESO_60KHZ = DET_RESO;
-    static constexpr int RESO_40KHZ = DET_RESO * 3 / 2;
-    static constexpr int PERIOD = lcm(RESO_60KHZ, RESO_40KHZ);
-
-    freq_t freq = freq_t::EAST_40KHZ;
-
-private:
-    int32_t sin_table_40kHz[PERIOD];
-    int32_t sin_table_60kHz[PERIOD];
-    int phase;
-    
-public:
-    QuadDetector() {
-        // sinテーブル
-        for (int i = 0; i < PERIOD; i++) {
-            sin_table_40kHz[i] = round(sin(i * 2 * M_PI / RESO_40KHZ) * (1 << (PREC - 1)));
-        }
-        for (int i = 0; i < PERIOD; i++) {
-            sin_table_60kHz[i] = round(sin(i * 2 * M_PI / RESO_60KHZ) * (1 << (PREC - 1)));
-        }
-    }
-
-    void init(freq_t freq, uint32_t t_now_ms) {
-        this->freq = freq;
-        phase = 0;
-    }
-
-    int32_t process(uint32_t t_now_ms, const int32_t *in, int size) {
-        int32_t sum = 0;
-        for (int i = 0; i < size; i++) {
-            int32_t sin, cos;
-            if (freq == freq_t::EAST_40KHZ) {
-                sin = sin_table_40kHz[phase];
-                cos = sin_table_40kHz[(phase + RESO_40KHZ / 4) % RESO_40KHZ];
-            }
-            else {
-                sin = sin_table_60kHz[phase];
-                cos = sin_table_60kHz[(phase + RESO_60KHZ / 4) % RESO_60KHZ];
-            }
-            int32_t u = (sin * in[i]) >> PREC;
-            int32_t v = (cos * in[i]) >> PREC;
-            sum += (uint32_t)fast_sqrt(u * u + v * v);
-            phase = (phase + 1) % DET_RESO;
-        }
-        return sum / size;
-    }
-};
+#endif
 
 class AntiChattering {
 public:
@@ -399,14 +352,13 @@ public:
     }
 };
 
-template<int DMA_SIZE>
 class Rf {
 public:
     const int det_delay_ms;
     const int anti_chat_delay_ms;
 #ifdef USE_NEW_AGC
-    DcBias<DET_SPS / DMA_SIZE, ONE / 2> pre_bias;
-    Agc<DET_SPS, DMA_SIZE, ONE / 2, ONE / 10, ONE * 100> pre_agc;
+    DcBias<DETECTION_OUTPUT_SPS, ONE / 2> pre_bias;
+    Agc<DETECTION_OUTPUT_SPS, ONE / 2, ONE / 10, ONE * 100> pre_agc;
 #else
     Agc_Deprecated agc;
 #endif
@@ -415,12 +367,12 @@ public:
 
 private:
     rf_status_t status;
-    int32_t agc_out[DMA_SIZE];
+    int32_t agc_out[DETECTION_BLOCK_SIZE];
     int agc_out_size = 0;
 
 public:
     Rf() :
-        det_delay_ms(1000 * DMA_SIZE / DET_SPS), 
+        det_delay_ms(1000 * DETECTION_BLOCK_SIZE / DETECTION_INPUT_SPS), 
         anti_chat_delay_ms(det_delay_ms * (AntiChattering::ANTI_CHAT_CYCLES - 1)) {}
     
     void init(freq_t freq, const uint32_t t_now_ms) {
@@ -440,11 +392,11 @@ public:
         preBiasAgc(t_now_ms, in);
 #else
         // AGC
-        agc.process(t_now_ms, in, agc_out, DMA_SIZE);
+        agc.process(t_now_ms, in, agc_out, DETECTION_BLOCK_SIZE);
 #endif
 
         // 直交検波
-        int32_t det_anl_out_raw = det.process(t_now_ms, agc_out, DMA_SIZE);
+        int32_t det_anl_out_raw = det.process(t_now_ms, agc_out);
 
         // フィルター
         uint8_t out = bin.process(t_now_ms, det_anl_out_raw);
@@ -471,20 +423,24 @@ public:
 
 #ifdef USE_NEW_AGC
     void preBiasAgc(uint64_t t_ms, const uint16_t *in) {
+        constexpr int32_t HALF_PI = 3.1415926535f * ONE / 2;
+
         int32_t ave = 0;
         int32_t amp = 0;
         int32_t bias = pre_bias.bias;
-        int32_t gain = 12;
-        for (int i = 0; i < DMA_SIZE; i++) {
+        int32_t gain = pre_agc.gain;
+        for (int i = 0; i < DETECTION_BLOCK_SIZE; i++) {
             ave += in[i];
-            amp += JJY_ABS(in[i]);
-            int32_t bias_out = (in[i] - bias) * 12;
-            agc_out[i] = bias_out * 12;
-            //agc_out[i] = pre_agc.process(bias_out);
+            int32_t biased = in[i] - bias;
+            amp += JJY_ABS(biased);
+            agc_out[i] = biased * gain / ONE;
         }
-        ave /= DMA_SIZE;
-        amp /= DMA_SIZE;
+        ave = JJY_ROUND_DIV(ave, DETECTION_BLOCK_SIZE);
+        amp = JJY_ROUND_DIV(amp, DETECTION_BLOCK_SIZE);
+        amp = JJY_ROUND_DIV(amp * HALF_PI, ONE);
+
         pre_bias.process(ave);
+        pre_agc.process(amp);
         
         status.adc_amplitude_raw = amp;
         status.adc_amplitude_peak = pre_agc.amplitude_peak;

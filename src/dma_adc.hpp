@@ -8,15 +8,15 @@
 
 static constexpr uint32_t ADC_CLK_FREQ = 48e6;
 
-template<int PIN, int FREQ, int DMA_SIZE>
+template<int PIN, int SPS, int DMA_SIZE>
 class DmaAdc {
 public:
     uint32_t pin;
     uint32_t dma_ch;
 
 private:
-    static constexpr uint32_t ADC_DIVISOR = ADC_CLK_FREQ / FREQ;
-    static_assert(ADC_DIVISOR == 0 || ADC_DIVISOR >= 96);
+    static constexpr uint32_t ADC_DIVISOR = ADC_CLK_FREQ / SPS;
+    static_assert(ADC_DIVISOR >= 96);
     static constexpr int NUM_BANKS = 2;
     dma_channel_config dma_cfg;
     uint16_t dma_buff[DMA_SIZE * NUM_BANKS];

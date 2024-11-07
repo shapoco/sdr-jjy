@@ -116,7 +116,8 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
         }
     }
 
-    int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc_Deprecated::GOAL_AMPLITUDE * 5 / 4);
+    //int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc_Deprecated::GOAL_AMPLITUDE * 5 / 4);
+    int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::ONE * 5 / 4);
     fxp12::interp(&gain_meter_curr, goal, fxp12::ONE / 2);
     
     lcd.draw_string(bmpfont::font5, x0, y0, "AMP");

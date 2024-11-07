@@ -8,10 +8,9 @@
 
 namespace jjy::rx {
 
-template<int DMA_SIZE>
 class Receiver {
 public:
-    Rf<DMA_SIZE> rf;
+    Rf rf;
     Synchronizer sync;
     Decoder dec;
 

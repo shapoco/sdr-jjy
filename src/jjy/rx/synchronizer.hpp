@@ -40,8 +40,8 @@ private:
     static constexpr int BITDET_NUM_SLOTS = 6;
     static constexpr int BITDET_OK_THRESH = 10;
 
-    static constexpr int BITDET_QTY_HISTORY_SIZE = BITDET_NUM_SLOTS;
-    RingHistory<int32_t, BITDET_QTY_HISTORY_SIZE> qty_history;
+    RingHistory<int32_t, BITDET_NUM_SLOTS> qty_history;
+    RingHistory<int32_t, 10> ber_history;
 
     LazyTimer<uint32_t, 1000> cand_update_timer;
     LazyTimer<uint32_t, CAND_EXPIRE_TIME_MS, false> cand_expire_timer;
@@ -74,7 +74,7 @@ public:
         bitdet_lo_count = 0;
         bitdet_sreg = BITDET_SREG_INITVAL;
 
-        qty_history.clear(0);
+        qty_history.clear(0, true);
 
         for (int i = 0; i < NUM_PHASE_CANDS; i++) {
             status.phase_cands[i].valid = false;
@@ -193,6 +193,8 @@ public:
             bitdet_lo_count = 0;
             bitdet_sreg = BITDET_SREG_INITVAL;
             status.bit_det_quality /= 2;
+            ber_history.push(0);
+            qty_history.push(0);
         }
         else {
             uint8_t hi = bitdet_hi_count > bitdet_lo_count ? 1 : 0;
@@ -201,7 +203,6 @@ public:
             bitdet_sreg &= (1 << BITDET_NUM_SLOTS) - 1;
 
             qty_history.push(JJY_ABS(bitdet_hi_count - bitdet_lo_count) * ONE / (bitdet_hi_count + bitdet_lo_count));
-            status.bit_det_quality = qty_history.ave();
 
             out_enable = (slot == 0);
             if (out_enable) {
@@ -211,11 +212,14 @@ public:
                 case 0b111110: out_value = jjybit_t::ZERO; break;
                 default: out_value = jjybit_t::ERROR; break;
                 }
+                ber_history.push(out_value != jjybit_t::ERROR ? ONE : 0);
             }
 
             bitdet_hi_count = 0;
             bitdet_lo_count = 0;
         }
+
+        status.bit_det_quality = qty_history.ave() * ber_history.ave() / ONE;
 
         *out = out_value;
         return out_enable && status.phase_locked;

@@ -13,12 +13,12 @@ private:
     int _size = 0;
 
 public:
-    void clear(T value) {
+    void clear(T value = 0, bool fill = false) {
         for (int i = 0; i < PERIOD; i++) {
             _history[i] = value;
         }
         _cursor = 0;
-        _size = 0;
+        _size = fill ? PERIOD : 0;
     }
 
     bool push(T value) {
@@ -38,19 +38,21 @@ public:
 
     int size() const { return _size; }
 
-    T sum(T initval = 0) const {
-        T accum = initval;
+    T sum() const {
+        T accum = 0;
         for (int i = 0; i < _size; i++) {
             accum += _history[i];
         }
         return accum;
     }
 
-    T ave() const { 
+    T ave(T defaultValue = 0) const { 
+        if (_size == 0) return defaultValue;
         return (_size > 0) ? (sum() / _size) : 0;
     }
 
-    T min() const {
+    T min(T defaultValue = 0) const {
+        if (_size == 0) return defaultValue;
         T min = 0;
         for (int i = 0; i < _size; i++) {
             T val = _history[i];
@@ -60,7 +62,8 @@ public:
         return min;
     }
 
-    T max() const {
+    T max(T defaultValue = 0) const {
+        if (_size == 0) return defaultValue;
         T max = 0;
         for (int i = 0; i < _size; i++) {
             T val = _history[i];

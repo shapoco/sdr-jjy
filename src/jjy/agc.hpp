@@ -5,15 +5,14 @@
 
 #include "jjy/common.hpp"
 #include "shapoco/math_utils.hpp"
-#include "shapoco/ring_scope.hpp"
+#include "shapoco/ring_history.hpp"
 
 using namespace shapoco;
 
 namespace jjy {
 
 template<
-    int PHASE_PERIOD, 
-    int PHASE_RESOLUTION, 
+    int PERIOD, 
     int32_t INIT_VAL = 0, 
     int32_t MIN_GAIN = ONE / 100, 
     int32_t MAX_GAIN = ONE * 100, 
@@ -26,25 +25,23 @@ public:
     int32_t out = INIT_VAL;
 
 private:
-    int phase = 0;
-    RingScope<int32_t, int, INIT_VAL, PHASE_PERIOD, PHASE_RESOLUTION> history;
+    RingHistory<int32_t, PERIOD> history;
 
 public:
     void reset() {
-        phase = 0;
-        history.clear(phase, INIT_VAL);
+        history.clear(INIT_VAL);
         gain = INIT_GAIN;
         amplitude_peak = 0;
         out = INIT_VAL;
     }
     
     int32_t process(int32_t in) {
-        history.write(phase, SHPC_ABS(in));
-        phase = (phase + 1 < PHASE_PERIOD) ? (phase + 1) : 0;
+        history.push(SHPC_ABS(in));
 
-        amplitude_peak = history.max(INIT_VAL, true);
+        amplitude_peak = history.max();
         if (amplitude_peak > 0) {
             gain = SHPC_ROUND_DIV(ONE * ONE, amplitude_peak);
+            gain = SHPC_CLIP(MIN_GAIN, MAX_GAIN, gain);
         }
         else {
             gain = MAX_GAIN;

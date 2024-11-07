@@ -19,10 +19,8 @@
 #define ENABLE_STDOUT (1)
 
 static constexpr uint32_t SYS_CLK_FREQ = 120 * MHZ;
-static constexpr uint32_t DET_RESO = 8;
-static constexpr uint32_t ADC_SPS = jjy::rx::DET_SPS;
-static constexpr uint32_t DMA_SIZE = 5000;
-static constexpr uint32_t DMA_PER_SEC = ADC_SPS / DMA_SIZE;
+static constexpr uint32_t ADC_SPS = jjy::rx::DETECTION_INPUT_SPS;
+static constexpr uint32_t DMA_SIZE = jjy::rx::PREFERRED_DMA_SIZE;
 
 static constexpr int PIN_ADC_IN = 26;
 static constexpr int PIN_LED_OUT = 25;
@@ -34,7 +32,7 @@ static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
 static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 
 DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
-jjy::rx::Receiver<DMA_SIZE> receiver;
+jjy::rx::Receiver receiver;
 
 atomic<receiver_status_t> glb_receiver_status;
 

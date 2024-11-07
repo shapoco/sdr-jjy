@@ -20,12 +20,10 @@ public:
     int32_t out = 0;
 
 private:
-    int phase = 0;
     RingHistory<int32_t, PERIOD> history;
 
 public:
     void reset() {
-        phase = 0;
         history.clear(INIT_BIAS);
         peak_hi = INIT_BIAS;
         peak_lo = INIT_BIAS;

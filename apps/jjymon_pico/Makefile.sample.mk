@@ -4,7 +4,7 @@ REPO_DIR = ../..
 LIB_DIR = $(REPO_DIR)/lib
 SRC_DIR = src
 BUILD_DIR = build
-BIN_DIR = bin
+BIN_DIR = bin/$(BOARD)
 
 BOARD := pico2
 

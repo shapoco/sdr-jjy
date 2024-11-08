@@ -14,7 +14,7 @@
 
 namespace shapoco::jjymon {
 
-static constexpr uint32_t SYS_CLK_FREQ = 120 * MHZ;
+static constexpr uint32_t SYS_CLK_FREQ = 150 * MHZ;
 
 static constexpr uint32_t ADC_SPS = shapoco::jjy::rx::DETECTION_INPUT_SPS;
 static constexpr uint32_t DMA_SIZE = shapoco::jjy::rx::DETECTION_BLOCK_SIZE;

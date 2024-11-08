@@ -4,9 +4,12 @@ REPO_DIR = ../..
 LIB_DIR = $(REPO_DIR)/lib
 SRC_DIR = src
 BUILD_DIR = build
+BIN_DIR = bin
+
+BOARD := pico2
 
 BIN_NAME = jjymon.uf2
-BIN = $(BUILD_DIR)/$(BIN_NAME)
+BIN = $(BIN_DIR)/$(BIN_NAME)
 
 APP_NAMESPACE = shapoco::jjymon
 
@@ -55,8 +58,10 @@ images: $(IMAGES_HPP)
 $(BIN): $(SRC_LIST) $(FONT_HPP_LIST) CMakeLists.txt
 	mkdir -p $(BUILD_DIR)
 	cd $(BUILD_DIR) \
-		&& cmake -DPICO_BOARD=pico2 -DCMAKE_BUILD_TYPE=Debug .. \
+		&& cmake -DPICO_BOARD=$(BOARD) -DCMAKE_BUILD_TYPE=Debug .. \
 		&& make -j
+	mkdir -p $(BIN_DIR)
+	cp $(BUILD_DIR)/$(BIN_NAME) $(BIN)
 	@echo "------------------------------"
 	@echo "UF2 File:"
 	@echo $(BIN)
@@ -136,9 +141,7 @@ launch-openocd: $(BIN)
 		-s tcl
 
 clean:
-	rm -f $(BIN)
-	rm -f $(FONT_HPP_LIST) $(FONT_CPP_LIST)
-	rm -f $(IMAGES_HPP) $(IMAGES_CPP)
-
-distclean:
 	rm -rf build
+
+distclean: clean
+	rm -rf bin

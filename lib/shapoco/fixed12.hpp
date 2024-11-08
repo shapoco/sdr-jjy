@@ -1,9 +1,6 @@
-#ifndef FIXED12_HPP
-#define FIXED12_HPP
+#pragma once
 
 #include <stdint.h>
-
-namespace fxp12 {
 
 #define FXP_INELINE inline __attribute__((always_inline))
 
@@ -11,6 +8,8 @@ namespace fxp12 {
 #define FXP_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define FXP_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define FXP_CLIP(min, max, val) (FXP_MAX((min), FXP_MIN((max), (val))))
+
+namespace shapoco::fxp12 {
 
 constexpr int PREC = 12;
 constexpr int32_t ONE = 1 << PREC;
@@ -34,5 +33,3 @@ static FXP_INELINE void interp(int32_t *var, int32_t goal, int32_t ratio) {
 }
 
 }
-
-#endif

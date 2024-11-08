@@ -1,12 +1,12 @@
-#ifndef JJY_RX_RECEIVER_HPP
-#define JJY_RX_RECEIVER_HPP
+#pragma once
 
 #include "shapoco/jjy/common.hpp"
+#include "shapoco/jjy/rx/common.hpp"
 #include "shapoco/jjy/rx/radio.hpp"
 #include "shapoco/jjy/rx/synchronizer.hpp"
 #include "shapoco/jjy/rx/decoder.hpp"
 
-namespace jjy::rx {
+namespace shapoco::jjy::rx {
 
 class Receiver {
 public:
@@ -36,5 +36,3 @@ public:
 };
 
 }
-
-#endif

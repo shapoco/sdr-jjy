@@ -7,7 +7,7 @@ import numpy as np
 
 import argparse
 
-LIB_NAMESPCAE = 'shapoco::graphics'
+LIB_NAMESPCAE = '::shapoco::graphics'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--src', required=True)
@@ -33,7 +33,7 @@ def is_blue(pixel):
 def is_valid(pixel):
     return is_red(pixel) or is_blue(pixel)
 
-class CharInfo:
+class TinyFontGlyph:
     def __init__(self, c, x, y, w):
         self.code = c
         self.x = x
@@ -43,7 +43,7 @@ class CharInfo:
         self.valid = False
         self.blank = True
 
-chars: list[CharInfo] = []
+chars: list[TinyFontGlyph] = []
 
 base_y = 1
 first_valid_code = args.code_offset
@@ -88,7 +88,7 @@ while base_y < height:
                 else:
                     char_w = (x + 1 - start_x)
 
-                ci = CharInfo(char_code, start_x, base_y - args.height, char_w)
+                ci = TinyFontGlyph(char_code, start_x, base_y - args.height, char_w)
                 chars.append(ci)
                 ci.valid = char_w != 0
                 
@@ -171,25 +171,25 @@ with open(f'{args.outdir}/{args.name}.cpp', 'w') as f:
     f.write('};\n\n')
     
     CHAR_INFO_COLS = 1
-    f.write(f'static const CharInfo {index_array_name}[] = {{\n')
+    f.write(f'static const TinyFontGlyph {index_array_name}[] = {{\n')
     for ichar in range(len(chars)):
         ci = chars[ichar]
         optional_args = ''
 
         flags = []
         if ci.blank:
-            flags.append('CharInfo::BLANK')
+            flags.append('TinyFontGlyph::BLANK')
         if len(flags) > 0:
             optional_args += f', {' | '.join(flags)}'
         
         if (ichar % CHAR_INFO_COLS == 0):
             f.write('    ')
-        f.write(f'CharInfo({ci.index}, {ci.w}{optional_args}), ')
+        f.write(f'TinyFontGlyph({ci.index}, {ci.w}{optional_args}), ')
         if ((ichar + 1) % CHAR_INFO_COLS == 0) or ichar == len(chars) - 1:
             f.write('\n')
     f.write('};\n\n')
     
-    f.write(f'Font {args.name}({args.height}, {first_valid_code}, {len(chars)}, {args.spacing}, {data_array_name}, {index_array_name});\n\n')
+    f.write(f'TinyFont {args.name}({args.height}, {first_valid_code}, {len(chars)}, {args.spacing}, {data_array_name}, {index_array_name});\n\n')
     
     f.write('}\n')
 
@@ -200,8 +200,6 @@ with open(f'{args.outdir}/{args.name}.hpp', 'w') as f:
     f.write('\n')
     f.write(f'#include "{args.incdir}/tinyfont.hpp"\n\n')
     f.write(f'namespace {args.cpp_namespace} {{\n\n')
-    if args.cpp_namespace != LIB_NAMESPCAE:
-        f.write(f'using namespace {LIB_NAMESPCAE};\n\n')
-    f.write(f'extern shapoco::graphics::Font {args.name};\n\n')
+    f.write(f'extern {LIB_NAMESPCAE}::TinyFont {args.name};\n\n')
     f.write('}\n\n')
     f.write('#endif\n')

@@ -1,5 +1,4 @@
-#ifndef SHAPOCO_JJY_DC_OFFSET_HPP
-#define SHAPOCO_JJY_DC_OFFSET_HPP
+#pragma once
 
 #include <stdint.h>
 
@@ -7,9 +6,7 @@
 #include "shapoco/math_utils.hpp"
 #include "shapoco/ring_history.hpp"
 
-using namespace shapoco;
-
-namespace jjy {
+namespace shapoco::jjy {
 
 template<int PERIOD, int32_t INIT_BIAS = 0>
 class DcBias {
@@ -41,5 +38,3 @@ public:
 };
 
 }
-
-#endif

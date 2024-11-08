@@ -1,5 +1,4 @@
-#ifndef SHAPOCO_JJY_AGC_HPP
-#define SHAPOCO_JJY_AGC_HPP
+#pragma once
 
 #include <stdint.h>
 
@@ -7,9 +6,7 @@
 #include "shapoco/math_utils.hpp"
 #include "shapoco/ring_history.hpp"
 
-using namespace shapoco;
-
-namespace jjy {
+namespace shapoco::jjy {
 
 template<
     int PERIOD, 
@@ -51,5 +48,3 @@ public:
 };
 
 }
-
-#endif

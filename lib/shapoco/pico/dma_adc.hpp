@@ -1,10 +1,11 @@
-#ifndef DMA_ADC_HPP
-#define DMA_ADC_HPP
+#pragma once
 
 #include <stdint.h>
 
 #include "hardware/dma.h"
 #include "hardware/adc.h"
+
+namespace shapoco::pico {
 
 static constexpr uint32_t ADC_CLK_FREQ = 48e6;
 
@@ -75,4 +76,4 @@ private:
     }
 };
 
-#endif
+}

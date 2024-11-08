@@ -1,15 +1,19 @@
-#ifndef RADER_HPP
-#define RADER_HPP
+#pragma once
+
+#include "shapoco/fixed12.hpp"
+#include "shapoco/jjy/jjy.hpp"
+#include "shapoco/graphics/graphics.hpp"
+#include "shapoco/pico/ssd1309spi.hpp"
 
 #include "jjymon.hpp"
-#include "shapoco/jjy/jjy.hpp"
-#include "shapoco/fixed12.hpp"
-#include "shapoco/pico/ssd1309spi.hpp"
+#include "ui.hpp"
 #include "images.hpp"
+#include "fonts.hpp"
 
-//#define RADER_MINMAX_MODE
+namespace shapoco::jjymon {
 
-using pen_t = ssd1309spi::pen_t;
+using namespace ::shapoco::graphics;
+using pen_t = ::shapoco::pico::pen_t;
 
 class Rader {
 public:
@@ -24,12 +28,7 @@ private:
     static constexpr int WAVEFORM_BASE = RADIUS / 2;
     static constexpr int WAVEFORM_RANGE = RADIUS - WAVEFORM_BASE;
 
-#ifdef RADER_MINMAX_MODE
-    int32_t waveform_max[WAVEFORM_PERIOD];
-    int32_t waveform_min[WAVEFORM_PERIOD];
-#else
     int32_t waveform[WAVEFORM_PERIOD];
-#endif
 
     int32_t disp_phase_offset = 0;
     int last_phase = 0;
@@ -41,14 +40,6 @@ public:
         int32_t curr_val = FXP_CLIP(0, fxp12::ONE, (sts.rf.det_anl_out_norm + jjy::ONE * 2 / 10) * fxp12::ONE / (jjy::ONE * 14 / 10));
         //int32_t curr_val = FXP_CLIP(0, fxp12::ONE, (sts.rf.det_anl_out_beat_det + jjy::ONE * 2 / 10) * fxp12::ONE / (jjy::ONE * 14 / 10));
 
-#ifdef RADER_MINMAX_MODE
-        if (curr_phase != last_phase) {
-            waveform_max[curr_phase] = -9999 * fxp12::ONE;
-            waveform_min[curr_phase] = 9999 * fxp12::ONE;
-        }
-        waveform_max[curr_phase] = JJY_MAX(waveform_max[curr_phase], curr_val);
-        waveform_min[curr_phase] = JJY_MIN(waveform_min[curr_phase], curr_val);
-#else
         if (curr_phase != last_phase) {
             int phase_step = (curr_phase + WAVEFORM_PERIOD - last_phase) % WAVEFORM_PERIOD;
             int32_t last_val = waveform[last_phase];
@@ -58,7 +49,6 @@ public:
             }
             last_phase = curr_phase;
         }
-#endif
     }
 
     void render(uint32_t t_now_ms, int rx0, int ry0, JjyLcd &lcd, const receiver_status_t &sts) {
@@ -71,28 +61,9 @@ public:
         int cxf = cx * fxp12::ONE;
         int cyf = cy * fxp12::ONE;
 
-        lcd.draw_string(bmpfont::font5, rx0 + 4, ry0, "PHASE");
+        lcd.draw_string(fonts::font5, rx0 + 4, ry0, "PHASE");
 
         // 波形描画
-#ifdef RADER_MINMAX_MODE
-        for (int pos = 0; pos < WAVEFORM_PERIOD; pos++) {
-            int max = JJY_MAX(waveform_max[pos], waveform_min[(pos + WAVEFORM_PERIOD - 1) % WAVEFORM_PERIOD]);
-            int min = JJY_MIN(waveform_min[pos], waveform_max[(pos + WAVEFORM_PERIOD - 1) % WAVEFORM_PERIOD]);
-            int r1 = RADIUS / 2 + JJY_CLIP(1, RADIUS, max) / 2;
-            int r0 = RADIUS / 2 + JJY_CLIP(1, RADIUS, min) / 2;
-            int32_t a = pos * jjy::PHASE_PERIOD / WAVEFORM_PERIOD;
-            a = jjy::phase_add(a, -disp_phase_offset);
-            a = a * fxp12::ANGLE_PERIOD / jjy::PHASE_PERIOD - fxp12::ANGLE_PERIOD / 4;
-            int32_t sin = fxp12::sin(a);
-            int32_t cos = fxp12::cos(a);
-            int32_t x0 = cxf + cos * r0;
-            int32_t y0 = cyf + sin * r0;
-            int32_t x1 = cxf + cos * r1;
-            int32_t y1 = cyf + sin * r1;
-            lcd.draw_line_f(x0, y0, x1, y1, pen_t::WHITE);
-            lcd.set_pixel(fxp12::to_int(x1), fxp12::to_int(y1), pen_t::WHITE);
-        }
-#else
         int last_x, last_y;
         for (int i = 0; i < WAVEFORM_PERIOD; i++) {
             int p = (last_phase + 1 + i) % WAVEFORM_PERIOD;
@@ -109,7 +80,6 @@ public:
             last_x = x;
             last_y = y;
         }
-#endif
 
         // カーソル描画
         {
@@ -139,4 +109,4 @@ public:
 
 };
 
-#endif
+}

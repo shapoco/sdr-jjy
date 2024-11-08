@@ -1,9 +1,8 @@
-#ifndef SHAPOCO_JJY_ANTI_CHATTERING_HPP
-#define SHAPOCO_JJY_ANTI_CHATTERING_HPP
+#pragma once
 
 #include <stdint.h>
 
-namespace jjy {
+namespace shapoco::jjy {
 
 template<int DEPTH>
 class AntiChattering {
@@ -31,5 +30,3 @@ public:
 };
 
 }
-
-#endif

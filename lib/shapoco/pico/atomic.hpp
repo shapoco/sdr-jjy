@@ -1,9 +1,10 @@
-#ifndef ATOMIC_HPP
-#define ATOMIC_HPP
+#pragma once
 
 #include "pico/stdlib.h"
 #include "pico/multicore.h"
 #include "pico/sync.h"
+
+namespace shapoco::pico {
 
 template<typename T>
 class atomic {
@@ -30,4 +31,4 @@ public:
     }
 };
 
-#endif
+}

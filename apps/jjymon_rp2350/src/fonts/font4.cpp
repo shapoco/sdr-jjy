@@ -1,8 +1,10 @@
 #include <stdint.h>
 
-#include "shapoco/tinyfont/tinyfont.hpp"
+#include "shapoco/graphics/tinyfont.hpp"
 
-namespace bmpfont {
+namespace shapoco::jjymon::fonts {
+
+using namespace ::shapoco::graphics;
 
 static const uint8_t font4_data[] = {
     0x00, 0x00, 0x00, 0x02, // '.' (0x2e) : x=56, y=0, w=3
@@ -50,52 +52,52 @@ static const uint8_t font4_data[] = {
     0x05, 0x02, 0x02, 0x05, // 'X' (0x58) : x=32, y=18, w=3
 };
 
-static const CharInfo font4_index[] = {
-    CharInfo(0, 3), 
-    CharInfo(4, 0, CharInfo::BLANK), 
-    CharInfo(4, 3), 
-    CharInfo(8, 3), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 3), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 0, CharInfo::BLANK), 
-    CharInfo(16, 3), 
+static const TinyFontGlyph font4_index[] = {
+    TinyFontGlyph(0, 3), 
+    TinyFontGlyph(4, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(4, 3), 
+    TinyFontGlyph(8, 3), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 3), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(16, 3), 
 };
 
-Font font4(4, 46, 43, 1, font4_data, font4_index);
+TinyFont font4(4, 46, 43, 1, font4_data, font4_index);
 
 }

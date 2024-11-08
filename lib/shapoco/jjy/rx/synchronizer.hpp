@@ -1,14 +1,15 @@
-#ifndef JJY_RX_SYNCHRONIZER
-#define JJY_RX_SYNCHRONIZER
+#pragma once
 
 #include <stdint.h>
 #include <math.h>
 
-#include "shapoco/jjy/common.hpp"
 #include "shapoco/lazy_timer.hpp"
 #include "shapoco/ring_history.hpp"
 
-namespace jjy::rx {
+#include "shapoco/jjy/common.hpp"
+#include "shapoco/jjy/rx/common.hpp"
+
+namespace shapoco::jjy::rx {
 
 static constexpr int NUM_PHASE_CANDS = 10;
 
@@ -292,5 +293,3 @@ public:
 };
 
 }
-
-#endif

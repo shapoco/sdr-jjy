@@ -1,5 +1,6 @@
-#ifndef LAZY_TIMER_HPP
-#define LAZY_TIMER_HPP
+#pragma once
+
+namespace shapoco {
 
 template<typename T, T INITIAL_PERIOD, bool AUTO_LOOP = true>
 class LazyTimer {
@@ -44,4 +45,4 @@ public:
     }
 };
 
-#endif
+}

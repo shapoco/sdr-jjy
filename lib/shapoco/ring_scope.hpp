@@ -1,5 +1,4 @@
-#ifndef SHAPOCO_RING_SCOPE_HPP
-#define SHAPOCO_RING_SCOPE_HPP
+#pragma once
 
 #include <stdint.h>
 
@@ -135,5 +134,3 @@ public:
 };
 
 }
-
-#endif

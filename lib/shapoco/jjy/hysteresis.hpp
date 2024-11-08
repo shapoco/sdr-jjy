@@ -1,14 +1,11 @@
-#ifndef SHAPOCO_JJY_HYSTERESIS_HPP
-#define SHAPOCO_JJY_HYSTERESIS_HPP
+#pragma once
 
 #include <stdint.h>
 
 #include "shapoco/jjy/common.hpp"
 #include "shapoco/ring_history.hpp"
 
-using namespace shapoco;
-
-namespace jjy {
+namespace shapoco::jjy {
 
 template<int DEPTH, int HISTORY_SIZE, int32_t INIT_VAL = 0, int32_t HYST_RATIO = ONE / 10>
 class Hysteresis {
@@ -50,5 +47,3 @@ public:
 };
 
 }
-
-#endif

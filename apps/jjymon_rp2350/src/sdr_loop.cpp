@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "stdint.h"
 #include "math.h"
-#include "hardware/clocks.h"
 #include "hardware/gpio.h"
 #include "hardware/pwm.h"
 #include "pico/stdlib.h"
@@ -14,31 +13,16 @@
 #include "shapoco/jjy/jjy.hpp"
 
 #include "jjymon.hpp"
-#include "core1.hpp"
+#include "sdr_loop.hpp"
 
-#define ENABLE_STDOUT (1)
+namespace shapoco::jjymon {
 
-static constexpr uint32_t SYS_CLK_FREQ = 120 * MHZ;
-static constexpr uint32_t ADC_SPS = jjy::rx::DETECTION_INPUT_SPS;
-static constexpr uint32_t DMA_SIZE = jjy::rx::PREFERRED_DMA_SIZE;
-
-static constexpr int PIN_ADC_IN = 26;
-static constexpr int PIN_LED_OUT = 25;
-static constexpr int PIN_SPEAKER_OUT = 28;
-static constexpr int PIN_LAMP_OUT = 15;
-
-static constexpr uint32_t SPEAKER_FREQ = 440;
-static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
-static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
-
-DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
-jjy::rx::Receiver receiver;
-
-atomic<receiver_status_t> glb_receiver_status;
+::shapoco::pico::DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
+::shapoco::jjy::rx::Receiver receiver;
 
 static receiver_status_t sts;
 
-int main() {
+void sdr_init(void) {
     set_sys_clock_khz(SYS_CLK_FREQ / KHZ, true);
     sleep_ms(100);
 
@@ -50,9 +34,6 @@ int main() {
     printf("receiver.rf.anti_chat_delay_ms = %d\n", receiver.rf.anti_chat_delay_ms);
 #endif
 
-    // Setup fixed-point library
-    fxp12::init_tables();
-
     // Setup LED pin
     gpio_init(PIN_LED_OUT);
     gpio_set_dir(PIN_LED_OUT, GPIO_OUT);
@@ -60,7 +41,7 @@ int main() {
     // Setup Lamp pin
     gpio_init(PIN_LAMP_OUT);
     gpio_set_dir(PIN_LAMP_OUT, GPIO_OUT);
-
+    
     // Setup speaker out
     {
         gpio_init(PIN_SPEAKER_OUT);
@@ -79,19 +60,17 @@ int main() {
     dma_adc.init();
     sleep_ms(100);
 
-    core1_init();
-    multicore_launch_core1(core1_main);
+    receiver.init(jjy::WEST_60KHZ, to_ms_since_boot(get_absolute_time()));
+}
 
+void sdr_loop(void) {
     dma_adc.run();
 
     uint64_t t_last_us = to_us_since_boot(get_absolute_time());
     uint32_t t_dma_us = 0, t_calc_us = 0;
     uint32_t t_next_print_ms = t_last_us / 1000;
 
-    receiver.init(jjy::EAST_40KHZ, to_ms_since_boot(get_absolute_time()));
-
     while(true) {
-
         uint64_t t_now_us = to_us_since_boot(get_absolute_time());
         t_calc_us += t_now_us - t_last_us;
         t_last_us = t_now_us;
@@ -131,9 +110,7 @@ int main() {
             t_calc_us = 0;
             t_dma_us = 0;
         }
-
-
     }
+}
 
-    return 0;
 }

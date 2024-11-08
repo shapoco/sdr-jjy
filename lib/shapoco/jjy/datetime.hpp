@@ -1,11 +1,10 @@
-#ifndef SHAPOCO_JJY_DATETIME_HPP
-#define SHAPOCO_JJY_DATETIME_HPP
+#pragma once
 
 #include <stdint.h>
 
 #include "shapoco/jjy/common.hpp"
 
-namespace jjy {
+namespace shapoco::jjy {
 
 enum class JjyDayOfWeek : uint8_t {
     SUNDAY = 0,
@@ -188,6 +187,3 @@ struct JjyDateTime {
 };
 
 }
-
-#endif
-

@@ -1,12 +1,12 @@
-#ifndef SHAPOCO_JJY_RX_QUAD_DETECTOR
-#define SHAPOCO_JJY_RX_QUAD_DETECTOR
+#pragma once
 
 #include <stdint.h>
 #include <math.h>
 
 #include "shapoco/jjy/common.hpp"
+#include "shapoco/jjy/rx/common.hpp"
 
-namespace jjy::rx {
+namespace shapoco::jjy::rx {
 
 class QuadDetector {
 public:
@@ -60,5 +60,3 @@ public:
 };
 
 }
-
-#endif

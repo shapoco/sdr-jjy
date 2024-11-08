@@ -2,7 +2,7 @@
 
 #include "shapoco/fixed12.hpp"
 
-namespace fxp12 {
+namespace shapoco::fxp12 {
 
 static bool table_inited = false;
 static int32_t sin_table[ANGLE_PERIOD];

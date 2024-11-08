@@ -1,5 +1,4 @@
-#ifndef JJY_RX_DECODER_HPP
-#define JJY_RX_DECODER_HPP
+#pragma once
 
 #include <stdint.h>
 #include <math.h>
@@ -11,10 +10,10 @@
 #include "shapoco/peak_hold.hpp"
 
 #include "shapoco/jjy/common.hpp"
+#include "shapoco/jjy/datetime.hpp"
+#include "shapoco/jjy/rx/common.hpp"
 
-using namespace shapoco; // todo: 削除
-
-namespace jjy::rx {
+namespace shapoco::jjy::rx {
 
 class Decoder {
 public:
@@ -152,5 +151,3 @@ public:
 };
 
 }
-
-#endif

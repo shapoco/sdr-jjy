@@ -4,15 +4,20 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "jjymon.hpp"
 #include "shapoco/jjy/jjy.hpp"
 #include "shapoco/fixed12.hpp"
+#include "shapoco/graphics/graphics.hpp"
 #include "shapoco/pico/ssd1309spi.hpp"
 
+#include "jjymon.hpp"
+#include "ui.hpp"
 #include "images.hpp"
 #include "fonts.hpp"
 
-using pen_t = ssd1309spi::pen_t;
+namespace shapoco::jjymon {
+
+using namespace ::shapoco::graphics;
+using pen_t = ::shapoco::pico::pen_t;
 
 class BufferView {
 public:
@@ -68,7 +73,7 @@ public:
         for (int irow = 0; irow < NUM_ROWS; irow++) {
             rows[irow].clear(t_now_ms, irow);
         }
-        layout_rows();
+        layout_rows(true);
     }
 
     void render(uint64_t t_now_ms, JjyLcd &lcd, int x0, int y0, const receiver_status_t &sts) {
@@ -90,19 +95,19 @@ public:
                 cell_x -= CELL_W;
                 const cell_t &cell = row.cells[icol];
                 if (!cell.valid) {
-                    lcd.draw_char(bmpfont::font4, cell_x, row_y, '.');
+                    lcd.draw_char(fonts::font4, cell_x, row_y, '.');
                 }
                 else if (cell.value == jjy::jjybit_t::ZERO) {
-                    lcd.draw_char(bmpfont::font4, cell_x, row_y, '0');
+                    lcd.draw_char(fonts::font4, cell_x, row_y, '0');
                 }
                 else if (cell.value == jjy::jjybit_t::ONE) {
-                    lcd.draw_char(bmpfont::font4, cell_x, row_y, '1');
+                    lcd.draw_char(fonts::font4, cell_x, row_y, '1');
                 }
                 else if (cell.value == jjy::jjybit_t::MARKER) {
-                    lcd.draw_char(bmpfont::font4, cell_x, row_y, 'M');
+                    lcd.draw_char(fonts::font4, cell_x, row_y, 'M');
                 }
                 else {
-                    lcd.draw_char(bmpfont::font4, cell_x, row_y, blink ? 'X' : 'x');
+                    lcd.draw_char(fonts::font4, cell_x, row_y, blink ? 'X' : 'x');
                 }
             }
 
@@ -116,10 +121,10 @@ public:
 
         lcd.fill_rect(x0 - CELL_W, y0, WIDTH + CELL_W, TITLE_H, pen_t::BLACK);
 
-        lcd.draw_string(bmpfont::font5, x0, y0, "BUFF");
+        lcd.draw_string(fonts::font5, x0, y0, "BUFF");
         if (sts.dec.synced) {
             sprintf(s, "%d", sts.dec.last_bit_index);
-            lcd.draw_string(bmpfont::font5, x0 + 30, y0, s);
+            lcd.draw_string(fonts::font5, x0 + 30, y0, s);
         }
 
 #if 0
@@ -171,10 +176,10 @@ public:
         }
         rows[NUM_ROWS - 2].has_separator = add_separator;
         rows[NUM_ROWS - 1].clear(t_ms, NUM_ROWS - 1);
-        layout_rows();
+        layout_rows(false);
     }
 
-    void layout_rows() {
+    void layout_rows(bool reset) {
         int y = HEIGHT - CELL_H + 1;
         for (int irow = NUM_ROWS - 1; irow >= 0; irow--) {
             Row &row = rows[irow];
@@ -182,7 +187,7 @@ public:
                 y -= 2;
             }
             row.goal_y = y;
-            if (irow == NUM_ROWS - 1) {
+            if (reset || irow == NUM_ROWS - 1) {
                 row.disp_y = y;
             }
             y -= CELL_H;
@@ -190,5 +195,7 @@ public:
     }
     
 };
+
+}
 
 #endif

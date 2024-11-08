@@ -1,5 +1,4 @@
-#ifndef SSD1309_SPI_HPP
-#define SSD1309_SPI_HPP
+#pragma once
 
 #include <stdint.h>
 #include <string.h>
@@ -11,35 +10,11 @@
 #include "pico/binary_info.h"
 
 #include "shapoco/fixed12.hpp"
-#include "shapoco/tinyfont/tinyfont.hpp"
+#include "shapoco/graphics/graphics.hpp"
 
-namespace ssd1309spi {
+namespace shapoco::pico {
 
-template<typename T>
-static inline T min(T a, T b) { return a < b ? a : b; }
-
-template<typename T>
-static inline T max(T a, T b) { return a > b ? a : b; }
-
-template<typename T>
-static inline T clip(T min, T max, T value) {
-    if (value < min) return min;
-    if (value > max) return max;
-    return value;
-}
-
-class Rect {
-public:
-    int x, y, w, h;
-    Rect() : x(0), y(0), w(0), h(0) {}
-    Rect(int x, int y, int w, int h) : x(x), y(y), w(w), h(h) { }
-    int r() const { return x + w; }
-    int b() const { return y + h; }
-    int cx() const { return (x + w / 2); }
-    int cy() const { return (y + h / 2); }
-};
-
-Rect clip_rect(const Rect rect, int w, int h);
+using namespace shapoco::graphics;
 
 using seg_t = uint8_t;
 
@@ -79,7 +54,7 @@ typedef enum : uint8_t {
 } pen_t;
 
 template<int W, int H, int SPI_INDEX, uint32_t SPI_FREQ, int PIN_RES_N, int PIN_CS_N, int PIN_DC, int PIN_SCLK, int PIN_MOSI>
-class Lcd {
+class Ssd1309Spi {
 public:
 
     static constexpr int PAGE_H = 8;
@@ -102,7 +77,7 @@ private:
     int num_sent_pages = 0;
 
 public:
-    Lcd() : spi(SPI_INDEX == 0 ? spi0 : spi1) { }
+    Ssd1309Spi() : spi(SPI_INDEX == 0 ? spi0 : spi1) { }
 
     void init() {
         curr_page = 0;
@@ -322,7 +297,7 @@ public:
         draw_bitmap(x0, y0, bitmap + 4, 0, 0, w, h, stride);
     }
 
-    int draw_string(const bmpfont::Font &font, int dx0, int dy0, const char* s) {
+    int draw_string(const TinyFont &font, int dx0, int dy0, const char* s) {
         int n = strlen(s);
         const char *c = s;
         for (int i = 0; i < n; i++) {
@@ -331,9 +306,9 @@ public:
         return dx0;
     }
 
-    int draw_char(const bmpfont::Font &font, int dx0, int dy0, char c) {
+    int draw_char(const TinyFont &font, int dx0, int dy0, char c) {
         if (!font.contains_char(c)) return 0;
-        const bmpfont::CharInfo &ci = font.get_char_info(c);
+        const TinyFontGlyph &ci = font.get_char_info(c);
         if (!ci.isBlank()) {
             draw_bitmap(dx0, dy0, font.bitmap + ci.offset, 0, 0, ci.width, font.height, (ci.width + 7) / 8);
         }
@@ -439,5 +414,3 @@ public:
 };
 
 }
-
-#endif

@@ -1,8 +1,10 @@
 #include <stdint.h>
 
-#include "shapoco/tinyfont/tinyfont.hpp"
+#include "shapoco/graphics/tinyfont.hpp"
 
-namespace bmpfont {
+namespace shapoco::jjymon::fonts {
+
+using namespace ::shapoco::graphics;
 
 static const uint8_t font12_data[] = {
     // (BLANK) ' ' (0x20) : x=0, y=0, w=4
@@ -39,41 +41,41 @@ static const uint8_t font12_data[] = {
     0x00, 0x1e, 0x3f, 0x33, 0x30, 0x38, 0x1c, 0x0c, 0x0c, 0x00, 0x0c, 0x0c, // '?' (0x3f) : x=89, y=14, w=6
 };
 
-static const CharInfo font12_index[] = {
-    CharInfo(0, 4, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 0, CharInfo::BLANK), 
-    CharInfo(0, 6), 
-    CharInfo(12, 0, CharInfo::BLANK), 
-    CharInfo(12, 6), 
-    CharInfo(24, 6), 
-    CharInfo(36, 6), 
-    CharInfo(48, 6), 
-    CharInfo(60, 6), 
-    CharInfo(72, 6), 
-    CharInfo(84, 6), 
-    CharInfo(96, 6), 
-    CharInfo(108, 6), 
-    CharInfo(120, 6), 
-    CharInfo(132, 6), 
-    CharInfo(144, 2), 
-    CharInfo(156, 0, CharInfo::BLANK), 
-    CharInfo(156, 0, CharInfo::BLANK), 
-    CharInfo(156, 0, CharInfo::BLANK), 
-    CharInfo(156, 0, CharInfo::BLANK), 
-    CharInfo(156, 6), 
+static const TinyFontGlyph font12_index[] = {
+    TinyFontGlyph(0, 4, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(0, 6), 
+    TinyFontGlyph(12, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(12, 6), 
+    TinyFontGlyph(24, 6), 
+    TinyFontGlyph(36, 6), 
+    TinyFontGlyph(48, 6), 
+    TinyFontGlyph(60, 6), 
+    TinyFontGlyph(72, 6), 
+    TinyFontGlyph(84, 6), 
+    TinyFontGlyph(96, 6), 
+    TinyFontGlyph(108, 6), 
+    TinyFontGlyph(120, 6), 
+    TinyFontGlyph(132, 6), 
+    TinyFontGlyph(144, 2), 
+    TinyFontGlyph(156, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(156, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(156, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(156, 0, TinyFontGlyph::BLANK), 
+    TinyFontGlyph(156, 6), 
 };
 
-Font font12(12, 32, 32, 1, font12_data, font12_index);
+TinyFont font12(12, 32, 32, 1, font12_data, font12_index);
 
 }

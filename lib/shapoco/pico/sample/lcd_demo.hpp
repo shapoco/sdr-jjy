@@ -1,3 +1,5 @@
+#if 0
+
 #ifndef LCD_DEMO_HPP
 #define LCD_DEMO_HPP
 
@@ -7,5 +9,7 @@
 #include "shapoco/fixed12.hpp"
 
 void lcd_demo_render(JjyLcd &lcd, uint32_t t_now_ms);
+
+#endif
 
 #endif

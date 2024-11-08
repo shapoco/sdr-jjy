@@ -1,13 +1,14 @@
-#include "shapoco/pico/ssd1309spi.hpp"
+#include "shapoco/math_utils.hpp"
+#include "shapoco/graphics/common.hpp"
 
-namespace ssd1309spi {
+namespace shapoco::graphics {
 
 Rect clip_rect(Rect rect, int w, int h) {
     int r = rect.r(), b = rect.b();
-    rect.x = clip(0, w, rect.x);
-    rect.y = clip(0, h, rect.y);
-    rect.w = clip(0, w, r) - rect.x;
-    rect.h = clip(0, h, b) - rect.y;
+    rect.x = SHPC_CLIP(0, w, rect.x);
+    rect.y = SHPC_CLIP(0, h, rect.y);
+    rect.w = SHPC_CLIP(0, w, r) - rect.x;
+    rect.h = SHPC_CLIP(0, h, b) - rect.y;
     return rect;
 }
 

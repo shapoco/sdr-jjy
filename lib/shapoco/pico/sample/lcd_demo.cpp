@@ -1,11 +1,17 @@
+#if 0
 
 #include <stdint.h>
 
 #include "shapoco/fixed12.hpp"
+#include "shapoco/graphics/graphics.hpp"
+
 #include "jjymon.hpp"
+#include "ui/ui.hpp"
 #include "fonts.hpp"
 
 #include "lcd_demo.hpp"
+
+using namespace shapoco::graphics;
 
 void lcd_demo_render(JjyLcd &lcd, uint32_t t_now_ms) {
     const int32_t xline = 43;
@@ -56,3 +62,5 @@ void lcd_demo_render(JjyLcd &lcd, uint32_t t_now_ms) {
         lcd.fill_ellipse_f(el, et, er - el, eb - et);
     }
 }
+
+#endif

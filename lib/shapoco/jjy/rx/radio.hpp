@@ -1,5 +1,4 @@
-#ifndef JJY_RX_RADIO_HPP
-#define JJY_RX_RADIO_HPP
+#pragma once
 
 #include <stdint.h>
 #include <string.h>
@@ -12,16 +11,15 @@
 #include "shapoco/jjy/dc_bias.hpp"
 #include "shapoco/jjy/agc.hpp"
 #include "shapoco/jjy/anti_chattering.hpp"
+
+#include "shapoco/jjy/rx/common.hpp"
 #include "shapoco/jjy/rx/quad_detector.hpp"
 
 #include "shapoco/lazy_timer.hpp"
 
 #define USE_NEW_AGC // todo: 削除
 
-using namespace shapoco; // todo: 削除
-
-namespace jjy::rx {
-
+namespace shapoco::jjy::rx {
 
 typedef struct {
 public:
@@ -452,5 +450,3 @@ public:
 };
 
 }
-
-#endif

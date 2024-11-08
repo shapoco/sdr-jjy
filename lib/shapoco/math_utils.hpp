@@ -1,5 +1,4 @@
-#ifndef SHAPOCO_MATH_UTILS_HPP
-#define SHAPOCO_MATH_UTILS_HPP
+#pragma once
 
 #include <stdint.h>
 
@@ -12,5 +11,3 @@
 
 #define SHPC_CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
 #define SHPC_ROUND_DIV(a, b) (((a) + ((b) / 2)) / (b))
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef SHAPOCO_PEAK_HOLD_HPP
-#define SHAPOCO_PEAK_HOLD_HPP
+#pragma once
 
 #include <stdint.h>
 
@@ -38,5 +37,3 @@ public:
 };
 
 }
-
-#endif

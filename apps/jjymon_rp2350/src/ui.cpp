@@ -5,25 +5,25 @@
 #include "pico/stdlib.h"
 
 #include "jjymon.hpp"
-
-#include "core0.hpp"
-#include "core1.hpp"
+#include "ui.hpp"
 
 #include "shapoco/pico/atomic.hpp"
+#include "shapoco/pico/ssd1309spi.hpp"
 #include "shapoco/jjy/jjy.hpp"
 #include "shapoco/fixed12.hpp"
 
-#include "shapoco/pico/ssd1309spi.hpp"
 #include "images.hpp"
 #include "fonts.hpp"
 
-#include "meter.hpp"
 #include "rader.hpp"
 #include "buffer_view.hpp"
 
 #include "shapoco/lazy_timer.hpp"
 
-#include "lcd_demo.hpp"
+namespace shapoco::jjymon {
+
+using namespace ::shapoco::graphics;
+using namespace ::shapoco::pico;
 
 extern atomic<receiver_status_t> glb_receiver_status;
 static receiver_status_t sts;
@@ -31,11 +31,8 @@ static receiver_status_t sts;
 static constexpr int FPS = 50;
 
 static JjyLcd lcd;
-using pen_t = ssd1309spi::pen_t;
 
 static Rader rader;
-static Meter amp_meter;
-static Meter quarity_meter;
 static BufferView bit_table;
 
 static int32_t gain_meter_scale = fxp12::ONE;
@@ -51,13 +48,13 @@ static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val);
 static void render_sync_status(uint32_t t_now_ms);
 static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t &sts);
 
-void core1_init() {
+void ui_init(void) {
     uint64_t t = to_us_since_boot(get_absolute_time()) / 1000;
     lcd.init();
     bit_table.init(t);
 }
 
-void core1_main() {
+void ui_loop(void) {
     LazyTimer<uint32_t, 5> waveform_update_timer;
     LazyTimer<uint32_t, 20> render_timer;
 
@@ -80,9 +77,6 @@ void core1_main() {
 
             lcd.clear();
 
-#if 0
-            lcd_demo_render(lcd, t_now_ms);
-#else
             render_gain_meter(t_now_ms, 0, 0);
             render_quarity_meter(t_now_ms, 0, 20);
 
@@ -93,7 +87,7 @@ void core1_main() {
             //render_sync_status(t_now_ms);
 
             render_date_time(t_now_ms, lcd, sts);
-#endif
+
             lcd.commit();
         }
 
@@ -120,7 +114,7 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
     int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::ONE * 5 / 4);
     fxp12::interp(&gain_meter_curr, goal, fxp12::ONE / 2);
     
-    lcd.draw_string(bmpfont::font5, x0, y0, "AMP");
+    lcd.draw_string(fonts::font5, x0, y0, "AMP");
 
     const int scale_text_x = x0 + 17;
     char s[8];
@@ -135,7 +129,7 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
             sprintf(s, "/%1d", jjy::ONE / gain_meter_scale);
         }
     }
-    lcd.draw_string(bmpfont::font5, scale_text_x, y0, s);
+    lcd.draw_string(fonts::font5, scale_text_x, y0, s);
 
     render_meter(t_now_ms, 0, y0 + 6, gain_meter_curr);
 }
@@ -148,12 +142,12 @@ static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0) {
     int32_t qty = (qty_meter_curr + sts.rf.signal_quarity) / 2;
 #endif
 
-    lcd.draw_string(bmpfont::font5, x0, y0, "QTY");
+    lcd.draw_string(fonts::font5, x0, y0, "QTY");
     render_meter(t_now_ms, 0, y0 + 6, qty);
     
     char s[8];
     sprintf(s, "%d", qty * 100 / jjy::ONE);
-    lcd.draw_string(bmpfont::font5, x0 + 22, y0, s);
+    lcd.draw_string(fonts::font5, x0 + 22, y0, s);
 }
 
 static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val) {
@@ -180,7 +174,7 @@ static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val) {
 static void render_sync_status(uint32_t t_now_ms) {
     int x = 0;
     int y = LCD_H - 18;
-    const bmpfont::Font &font = bmpfont::font16;
+    const TinyFont &font = fonts::font16;
     if (!sts.sync.phase_locked) {
         lcd.draw_string(font, x, y, "SYNC...");
         y += font.height - 2;
@@ -196,13 +190,13 @@ static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t
     const int guage_w = LCD_W - guage_x;
     bool empty = true;
     if (!sts.sync.phase_locked) {
-        lcd.draw_string(bmpfont::font5, 0, sts_y, "PHASE SYNC...");
+        lcd.draw_string(fonts::font5, 0, sts_y, "PHASE SYNC...");
         const int guage_val = (LCD_W / 2) * sts.sync.phase_lock_progress / jjy::ONE;
         lcd.draw_rect(guage_x, sts_y, guage_w - 1, 4);
         lcd.fill_rect(guage_x, sts_y + 1, guage_val, 3);
     }
     else if (!sts.dec.synced) {
-        lcd.draw_string(bmpfont::font5, 0, sts_y, "FRAME SYNC...");
+        lcd.draw_string(fonts::font5, 0, sts_y, "FRAME SYNC...");
         int pos = t_ms % 1024;
         if (pos > 512) pos = 1024 - pos;
         const int guage_pos = (LCD_W * 3 / 8) * pos / 512;
@@ -210,7 +204,7 @@ static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t
         lcd.fill_rect(guage_x + guage_pos, sts_y + 1, (LCD_W / 8), 3);
     }
     else if (sts.dec.last_parse_result.flags == jjy::ParseResut::EMPTY) {
-        lcd.draw_string(bmpfont::font5, 0, sts_y, "RECEIVING...");
+        lcd.draw_string(fonts::font5, 0, sts_y, "RECEIVING...");
         const int guage_val = (LCD_W / 2) * sts.dec.last_bit_index / 60;
         lcd.draw_rect(guage_x, sts_y, guage_w - 1, 4);
         lcd.fill_rect(guage_x, sts_y + 1, guage_val, 3);
@@ -223,7 +217,7 @@ static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t
     }
     else {
         sprintf(s, "ERROR CODE = 0x%x", sts.dec.last_parse_result.flags);
-        lcd.draw_string(bmpfont::font5, 0, sts_y, s);
+        lcd.draw_string(fonts::font5, 0, sts_y, s);
     }
  
     static int tmp_t = 0;
@@ -238,7 +232,7 @@ static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t
     }
 
     if (empty) {
-        lcd.draw_string(bmpfont::font12, 0, LCD_H - 12, "----/--/-- --:--:--");
+        lcd.draw_string(fonts::font12, 0, LCD_H - 12, "----/--/-- --:--:--");
     }
     else {
         sprintf(s, "%04d/%02d/%02d %02d:%02d:%02d",
@@ -248,6 +242,8 @@ static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t
             disp_date_time.hours,
             disp_date_time.minutes,
             sts.dec.last_bit_index);
-        lcd.draw_string(bmpfont::font12, 0, LCD_H - 12, s);
+        lcd.draw_string(fonts::font12, 0, LCD_H - 12, s);
     }
+}
+
 }

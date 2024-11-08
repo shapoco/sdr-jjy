@@ -1,5 +1,4 @@
-#ifndef SHAPOCO_RING_HISTORY_HPP
-#define SHAPOCO_RING_HISTORY_HPP
+#pragma once
 
 #include <stdint.h>
 
@@ -76,5 +75,3 @@ public:
 };
 
 }
-
-#endif

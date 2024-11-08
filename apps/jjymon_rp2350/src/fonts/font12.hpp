@@ -1,11 +1,11 @@
-#ifndef SHAPOCO_TINYFONT_FONT12_HPP
-#define SHAPOCO_TINYFONT_FONT12_HPP
+#ifndef SHAPOCO_GRAPHICS_FONT12_HPP
+#define SHAPOCO_GRAPHICS_FONT12_HPP
 
-#include "shapoco/tinyfont/tinyfont.hpp"
+#include "shapoco/graphics/tinyfont.hpp"
 
-namespace bmpfont {
+namespace shapoco::jjymon::fonts {
 
-extern Font font12;
+extern ::shapoco::graphics::TinyFont font12;
 
 }
 

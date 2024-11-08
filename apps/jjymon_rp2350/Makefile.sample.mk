@@ -5,8 +5,10 @@ LIB_DIR = $(REPO_DIR)/lib
 SRC_DIR = src
 BUILD_DIR = build
 
-BIN_NAME = jjymon_rp2350.uf2
+BIN_NAME = jjymon.uf2
 BIN = $(BUILD_DIR)/$(BIN_NAME)
+
+APP_NAMESPACE = shapoco::jjymon
 
 BMP_DIR = bmp
 IMAGES_CPP = $(SRC_DIR)/images.cpp
@@ -19,11 +21,11 @@ FONT5_NAME = font5
 FONT12_NAME = font12
 FONT16_NAME = font16
 
-FONT_INC_DIR = $(LIB_DIR)/shapoco/tinyfont
+FONT_LIB_DIR = $(LIB_DIR)/shapoco/graphics
 FONT_SRC_DIR = $(SRC_DIR)/fonts
-FONT_COMMON_HPP = $(FONT_INC_DIR)/tinyfont.hpp
+FONT_COMMON_HPP = $(FONT_LIB_DIR)/tinyfont.hpp
 FONT_BMP_DIR = $(BMP_DIR)/fonts
-FONT_CPP_GEN_CMD = ./gen_font_array.py
+FONT_CPP_GEN_CMD = $(FONT_LIB_DIR)/gen_font_array.py
 
 FONT_HPP_LIST = \
 	$(FONT_SRC_DIR)/$(FONT4_NAME).hpp \
@@ -41,11 +43,10 @@ SRC_LIST=\
 	$(wildcard $(SRC_DIR)/*.*) \
 	$(wildcard $(SRC_DIR)/fonts/*.*) \
 	$(wildcard $(LIB_DIR)/shapoco/*.*) \
+	$(wildcard $(LIB_DIR)/shapoco/graphics/*.*) \
+	$(wildcard $(LIB_DIR)/shapoco/pico/*.*) \
 	$(wildcard $(LIB_DIR)/shapoco/jjy/*.*) \
-	$(wildcard $(LIB_DIR)/shapoco/jjy/rx/*.*) \
-	$(FONT_COMMON_HPP) \
-	$(IMAGES_CPP) \
-	$(IMAGES_HPP)
+	$(wildcard $(LIB_DIR)/shapoco/jjy/rx/*.*)
 
 all: $(BIN)
 fonts: $(FONT_HPP_LIST)
@@ -68,13 +69,18 @@ $(IMAGES_CPP): $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
 	@echo "#define JJYMON_IMAGES_HPP" >> $(IMAGES_HPP)
 	@echo >> $(IMAGES_HPP)
 	@echo "#include <stdint.h>" >> $(IMAGES_HPP)
+	@echo "namespace $(APP_NAMESPACE) {" >> $(IMAGES_HPP)
 	@echo >> $(IMAGES_HPP)
 	@echo "#include <stdint.h>" >> $(IMAGES_CPP)
+	@echo "namespace $(APP_NAMESPACE) {" >> $(IMAGES_CPP)
 	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src $(BMP_DIR)/bit_icons.png --name bmp_bit_icons
 	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src $(BMP_DIR)/meter_frame.png --name bmp_meter_frame
 	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src $(BMP_DIR)/icon_beat.png --name bmp_icon_beat
 	@echo >> $(IMAGES_HPP)
+	@echo "}" >> $(IMAGES_HPP)
 	@echo "#endif" >> $(IMAGES_HPP)
+	@echo >> $(IMAGES_CPP)
+	@echo "}" >> $(IMAGES_CPP)
 
 $(FONT_SRC_DIR)/$(FONT4_NAME).hpp : $(FONT_SRC_DIR)/$(FONT4_NAME).cpp $(FONT_BMP_DIR)/$(FONT4_NAME).png
 $(FONT_SRC_DIR)/$(FONT4_NAME).cpp : $(FONT_BMP_DIR)/$(FONT4_NAME).png $(FONT_CPP_GEN_CMD)
@@ -82,6 +88,7 @@ $(FONT_SRC_DIR)/$(FONT4_NAME).cpp : $(FONT_BMP_DIR)/$(FONT4_NAME).png $(FONT_CPP
 		--src $< \
 		--name $(FONT4_NAME) \
 		--outdir $(FONT_SRC_DIR) \
+		--cpp_namespace $(APP_NAMESPACE)::fonts \
 		--code-offset 32
 
 $(FONT_SRC_DIR)/$(FONT5_NAME).hpp : $(FONT_SRC_DIR)/$(FONT5_NAME).cpp $(FONT_BMP_DIR)/$(FONT5_NAME).png
@@ -90,6 +97,7 @@ $(FONT_SRC_DIR)/$(FONT5_NAME).cpp : $(FONT_BMP_DIR)/$(FONT5_NAME).png $(FONT_CPP
 		--src $< \
 		--name $(FONT5_NAME) \
 		--outdir $(FONT_SRC_DIR) \
+		--cpp_namespace $(APP_NAMESPACE)::fonts \
 		--code-offset 32
 
 $(FONT_SRC_DIR)/$(FONT12_NAME).hpp : $(FONT_SRC_DIR)/$(FONT12_NAME).cpp $(FONT_BMP_DIR)/$(FONT12_NAME).png
@@ -98,6 +106,7 @@ $(FONT_SRC_DIR)/$(FONT12_NAME).cpp : $(FONT_BMP_DIR)/$(FONT12_NAME).png $(FONT_C
 		--src $< \
 		--name $(FONT12_NAME) \
 		--outdir $(FONT_SRC_DIR) \
+		--cpp_namespace $(APP_NAMESPACE)::fonts \
 		--code-offset 32 \
 		--spacing 1
 
@@ -107,6 +116,7 @@ $(FONT_SRC_DIR)/$(FONT16_NAME).cpp : $(FONT_BMP_DIR)/$(FONT16_NAME).png $(FONT_C
 		--src $< \
 		--name $(FONT16_NAME) \
 		--outdir $(FONT_SRC_DIR) \
+		--cpp_namespace $(APP_NAMESPACE)::fonts \
 		--code-offset 32
 
 install: $(BIN)

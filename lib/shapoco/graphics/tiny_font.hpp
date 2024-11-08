@@ -1,7 +1,5 @@
 #pragma once
 
-// todo: リネーム: tinyfont.hpp --> tiny_font.hpp
-
 #include <stdint.h>
 
 namespace shapoco::graphics {

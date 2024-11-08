@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "shapoco/graphics/tinyfont.hpp"
+#include "shapoco/graphics/tiny_font.hpp"
 
 namespace shapoco::jjymon::fonts {
 

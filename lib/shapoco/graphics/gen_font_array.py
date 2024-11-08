@@ -125,7 +125,7 @@ index_array_name = f'{args.name}_index'
 index = 0
 with open(f'{args.outdir}/{args.name}.cpp', 'w') as f:
     f.write('#include <stdint.h>\n\n')
-    f.write(f'#include "{args.incdir}/tinyfont.hpp"\n\n')
+    f.write(f'#include "{args.incdir}/tiny_font.hpp"\n\n')
     f.write(f'namespace {args.cpp_namespace} {{\n\n')
     if args.cpp_namespace != LIB_NAMESPCAE:
         f.write(f'using namespace {LIB_NAMESPCAE};\n\n')
@@ -198,7 +198,7 @@ with open(f'{args.outdir}/{args.name}.hpp', 'w') as f:
     f.write(f'#ifndef {include_guard_symbol}\n')
     f.write(f'#define {include_guard_symbol}\n')
     f.write('\n')
-    f.write(f'#include "{args.incdir}/tinyfont.hpp"\n\n')
+    f.write(f'#include "{args.incdir}/tiny_font.hpp"\n\n')
     f.write(f'namespace {args.cpp_namespace} {{\n\n')
     f.write(f'extern {LIB_NAMESPCAE}::TinyFont {args.name};\n\n')
     f.write('}\n\n')

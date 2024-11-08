@@ -1,7 +1,7 @@
 #ifndef SHAPOCO_GRAPHICS_FONT12_HPP
 #define SHAPOCO_GRAPHICS_FONT12_HPP
 
-#include "shapoco/graphics/tinyfont.hpp"
+#include "shapoco/graphics/tiny_font.hpp"
 
 namespace shapoco::jjymon::fonts {
 

@@ -10,7 +10,7 @@
 #include "shapoco/ring_scope.hpp"
 #include "shapoco/peak_hold.hpp"
 
-#include "jjy/common.hpp"
+#include "shapoco/jjy/common.hpp"
 
 using namespace shapoco; // todo: 削除
 

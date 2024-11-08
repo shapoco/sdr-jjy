@@ -9,19 +9,19 @@
 #include "core0.hpp"
 #include "core1.hpp"
 
-#include "atomic.hpp"
-#include "jjy/jjy.hpp"
-#include "fixed12.hpp"
+#include "shapoco/pico/atomic.hpp"
+#include "shapoco/jjy/jjy.hpp"
+#include "shapoco/fixed12.hpp"
 
-#include "ssd1309spi.hpp"
-#include "images/images.hpp"
-#include "bmpfont/bmpfont.hpp"
+#include "shapoco/pico/ssd1309spi.hpp"
+#include "images.hpp"
+#include "fonts.hpp"
 
 #include "meter.hpp"
 #include "rader.hpp"
 #include "buffer_view.hpp"
 
-#include "lazy_timer.hpp"
+#include "shapoco/lazy_timer.hpp"
 
 #include "lcd_demo.hpp"
 

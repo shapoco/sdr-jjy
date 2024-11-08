@@ -1,8 +1,9 @@
 
 #include <stdint.h>
 
+#include "shapoco/fixed12.hpp"
 #include "jjymon.hpp"
-#include "fixed12.hpp"
+#include "fonts.hpp"
 
 #include "lcd_demo.hpp"
 

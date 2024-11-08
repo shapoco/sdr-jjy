@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "jjy/common.hpp"
+#include "shapoco/jjy/common.hpp"
 #include "shapoco/math_utils.hpp"
 #include "shapoco/ring_history.hpp"
 

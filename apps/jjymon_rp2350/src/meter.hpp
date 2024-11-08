@@ -2,9 +2,9 @@
 #define METER_HPP
 
 #include "jjymon.hpp"
-#include "fixed12.hpp"
-#include "ssd1309spi.hpp"
-#include "images/images.hpp"
+#include "shapoco/fixed12.hpp"
+#include "shapoco/pico/ssd1309spi.hpp"
+#include "images.hpp"
 
 using pen_t = ssd1309spi::pen_t;
 

@@ -10,8 +10,8 @@
 #include "pico/stdlib.h"
 #include "pico/binary_info.h"
 
-#include "fixed12.hpp"
-#include "bmpfont/bmpfont.hpp"
+#include "shapoco/fixed12.hpp"
+#include "shapoco/tinyfont/tinyfont.hpp"
 
 namespace ssd1309spi {
 

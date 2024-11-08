@@ -1,8 +1,8 @@
 #ifndef JJYMON_HPP
 #define JJYMON_HPP
 
-#include "jjy/jjy.hpp"
-#include "ssd1309spi.hpp"
+#include "shapoco/jjy/jjy.hpp"
+#include "shapoco/pico/ssd1309spi.hpp"
 
 static constexpr int LCD_W = 128;
 static constexpr int LCD_H = 64;

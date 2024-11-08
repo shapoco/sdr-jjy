@@ -5,11 +5,12 @@
 #include <string.h>
 
 #include "jjymon.hpp"
-#include "jjy/jjy.hpp"
-#include "fixed12.hpp"
-#include "ssd1309spi.hpp"
-#include "images/images.hpp"
-#include "bmpfont/bmpfont.hpp"
+#include "shapoco/jjy/jjy.hpp"
+#include "shapoco/fixed12.hpp"
+#include "shapoco/pico/ssd1309spi.hpp"
+
+#include "images.hpp"
+#include "fonts.hpp"
 
 using pen_t = ssd1309spi::pen_t;
 

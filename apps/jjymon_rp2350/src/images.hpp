@@ -1,5 +1,5 @@
-#ifndef IMAGES_HPP
-#define IMAGES_HPP
+#ifndef JJYMON_IMAGES_HPP
+#define JJYMON_IMAGES_HPP
 
 #include <stdint.h>
 

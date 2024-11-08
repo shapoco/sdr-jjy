@@ -4,38 +4,41 @@ cmake_minimum_required(VERSION 3.12)
 set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
 include(${PICO_SDK_PATH}/pico_sdk_init.cmake)
 
-project(pico2_jjy_receiver C CXX ASM)
+project(jjymon_rp2350 C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 
 # Initialize the SDK
 pico_sdk_init()
 
-add_executable(pico2_jjy_receiver)
+add_executable(jjymon_rp2350)
+
+set(SRC_DIR src)
+set(LIB_DIR ../../lib)
+
+file(GLOB LIB_CPP ${LIB_DIR}/shapoco/*.cpp)
+file(GLOB LIB_JJY_CPP ${LIB_DIR}/shapoco/jjy/*.cpp)
+file(GLOB LIB_PICO_CPP ${LIB_DIR}/shapoco/pico/*.cpp)
+file(GLOB APP_CPP ${SRC_DIR}/*.cpp)
+file(GLOB APP_FONTS_CPP ${SRC_DIR}/fonts/*.cpp)
 
 target_sources(
-    pico2_jjy_receiver PRIVATE 
-    src/fixed12.cpp
-    src/jjy/datetime.cpp
-    src/ssd1390spi.cpp
-    src/images/images.cpp
-    src/bmpfont/font4.cpp
-    src/bmpfont/font5.cpp
-    src/bmpfont/font12.cpp
-    src/bmpfont/font16.cpp
-    src/misc/lcd_demo.cpp
-    src/core0.cpp
-    src/core1.cpp
+    jjymon_rp2350 PRIVATE 
+    ${LIB_CPP}
+    ${LIB_JJY_CPP}
+    ${LIB_PICO_CPP}
+    ${APP_FONTS_CPP}
+    ${APP_CPP}
 )
 
 target_include_directories(
-    pico2_jjy_receiver PRIVATE
-    src
-    src/misc
+    jjymon_rp2350 PRIVATE
+    ${SRC_DIR}
+    ${LIB_DIR}
 )
 
 target_link_libraries(
-    pico2_jjy_receiver PRIVATE
+    jjymon_rp2350 PRIVATE
     pico_stdlib
     pico_multicore
     hardware_dma
@@ -44,7 +47,7 @@ target_link_libraries(
     hardware_spi
 )
 
-pico_enable_stdio_usb(pico2_jjy_receiver 1)
-pico_enable_stdio_uart(pico2_jjy_receiver 0)
+pico_enable_stdio_usb(jjymon_rp2350 1)
+pico_enable_stdio_uart(jjymon_rp2350 0)
 
-pico_add_extra_outputs(pico2_jjy_receiver)
+pico_add_extra_outputs(jjymon_rp2350)

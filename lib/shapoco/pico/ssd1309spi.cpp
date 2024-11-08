@@ -1,4 +1,4 @@
-#include "ssd1309spi.hpp"
+#include "shapoco/pico/ssd1309spi.hpp"
 
 namespace ssd1309spi {
 

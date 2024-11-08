@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "jjy/common.hpp"
+#include "shapoco/jjy/common.hpp"
 
 namespace jjy {
 

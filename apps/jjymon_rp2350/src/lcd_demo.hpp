@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include "jjymon.hpp"
-#include "fixed12.hpp"
+#include "shapoco/fixed12.hpp"
 
 void lcd_demo_render(JjyLcd &lcd, uint32_t t_now_ms);
 

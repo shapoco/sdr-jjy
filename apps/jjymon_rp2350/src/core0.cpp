@@ -8,10 +8,10 @@
 #include "pico/multicore.h"
 #include "pico/sync.h"
 
-#include "fixed12.hpp"
-#include "atomic.hpp"
-#include "dma_adc.hpp"
-#include "jjy/jjy.hpp"
+#include "shapoco/fixed12.hpp"
+#include "shapoco/pico/atomic.hpp"
+#include "shapoco/pico/dma_adc.hpp"
+#include "shapoco/jjy/jjy.hpp"
 
 #include "jjymon.hpp"
 #include "core1.hpp"

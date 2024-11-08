@@ -1,6 +1,6 @@
 #include <math.h>
 
-#include "fixed12.hpp"
+#include "shapoco/fixed12.hpp"
 
 namespace fxp12 {
 

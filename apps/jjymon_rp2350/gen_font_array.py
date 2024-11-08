@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--src', required=True)
 parser.add_argument('-n', '--name', required=True)
 parser.add_argument('-o', '--outdir', required=True)
-parser.add_argument('-i', '--incdir', required=True)
+parser.add_argument('-i', '--incdir', default='shapoco/tinyfont')
 parser.add_argument('-t', '--height', type=int, default=-1)
 parser.add_argument('-c', '--code-offset', type=int, required=True)
 parser.add_argument('--spacing', type=int, default=-1)
@@ -123,7 +123,7 @@ namespace = 'bmpfont'
 index = 0
 with open(f'{args.outdir}/{args.name}.cpp', 'w') as f:
     f.write('#include <stdint.h>\n\n')
-    f.write(f'#include "{args.incdir}/common.hpp"\n\n')
+    f.write(f'#include "{args.incdir}/tinyfont.hpp"\n\n')
     f.write(f'namespace {namespace} {{\n\n')
     f.write(f'static const uint8_t {data_array_name}[] = {{\n')
     for ci in chars:
@@ -194,7 +194,7 @@ with open(f'{args.outdir}/{args.name}.hpp', 'w') as f:
     f.write(f'#ifndef {include_guard_symbol}\n')
     f.write(f'#define {include_guard_symbol}\n')
     f.write('\n')
-    f.write(f'#include "{args.incdir}/common.hpp"\n\n')
+    f.write(f'#include "{args.incdir}/tinyfont.hpp"\n\n')
     f.write(f'namespace {namespace} {{\n\n')
     f.write(f'extern Font {args.name};\n\n')
     f.write('}\n\n')

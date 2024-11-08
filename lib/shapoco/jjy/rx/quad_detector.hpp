@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <math.h>
 
-#include "jjy/common.hpp"
+#include "shapoco/jjy/common.hpp"
 
 namespace jjy::rx {
 

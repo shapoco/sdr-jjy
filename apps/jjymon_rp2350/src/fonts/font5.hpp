@@ -1,7 +1,7 @@
-#ifndef BMPFONT_FONT5_HPP
-#define BMPFONT_FONT5_HPP
+#ifndef SHAPOCO_TINYFONT_FONT5_HPP
+#define SHAPOCO_TINYFONT_FONT5_HPP
 
-#include "bmpfont/common.hpp"
+#include "shapoco/tinyfont/tinyfont.hpp"
 
 namespace bmpfont {
 

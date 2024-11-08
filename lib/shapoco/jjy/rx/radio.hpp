@@ -4,19 +4,17 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "pico/stdlib.h"
-
 #include "shapoco/ring_scope.hpp"
 #include "shapoco/peak_hold.hpp"
 #include "shapoco/ring_history.hpp"
 
-#include "jjy/common.hpp"
-#include "jjy/dc_bias.hpp"
-#include "jjy/agc.hpp"
-#include "jjy/anti_chattering.hpp"
-#include "jjy/rx/quad_detector.hpp"
+#include "shapoco/jjy/common.hpp"
+#include "shapoco/jjy/dc_bias.hpp"
+#include "shapoco/jjy/agc.hpp"
+#include "shapoco/jjy/anti_chattering.hpp"
+#include "shapoco/jjy/rx/quad_detector.hpp"
 
-#include "lazy_timer.hpp"
+#include "shapoco/lazy_timer.hpp"
 
 #define USE_NEW_AGC // todo: 削除
 

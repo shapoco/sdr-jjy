@@ -4,10 +4,8 @@
 #include <stdint.h>
 #include <math.h>
 
-#include "pico/stdlib.h"
-
-#include "jjy/common.hpp"
-#include "lazy_timer.hpp"
+#include "shapoco/jjy/common.hpp"
+#include "shapoco/lazy_timer.hpp"
 #include "shapoco/ring_history.hpp"
 
 namespace jjy::rx {

@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "bmpfont/common.hpp"
+#include "shapoco/tinyfont/tinyfont.hpp"
 
 namespace bmpfont {
 

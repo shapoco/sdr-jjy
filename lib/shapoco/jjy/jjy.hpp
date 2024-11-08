@@ -1,10 +1,10 @@
 #ifndef JJY_HPP
 #define JJY_HPP
 
-#include "jjy/common.hpp"
-#include "jjy/datetime.hpp"
-#include "jjy/dc_bias.hpp"
-#include "jjy/agc.hpp"
-#include "jjy/rx/receiver.hpp"
+#include "shapoco/jjy/common.hpp"
+#include "shapoco/jjy/datetime.hpp"
+#include "shapoco/jjy/dc_bias.hpp"
+#include "shapoco/jjy/agc.hpp"
+#include "shapoco/jjy/rx/receiver.hpp"
 
 #endif

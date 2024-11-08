@@ -1,10 +1,10 @@
 #ifndef JJY_RX_RECEIVER_HPP
 #define JJY_RX_RECEIVER_HPP
 
-#include "jjy/common.hpp"
-#include "jjy/rx/radio.hpp"
-#include "jjy/rx/synchronizer.hpp"
-#include "jjy/rx/decoder.hpp"
+#include "shapoco/jjy/common.hpp"
+#include "shapoco/jjy/rx/radio.hpp"
+#include "shapoco/jjy/rx/synchronizer.hpp"
+#include "shapoco/jjy/rx/decoder.hpp"
 
 namespace jjy::rx {
 

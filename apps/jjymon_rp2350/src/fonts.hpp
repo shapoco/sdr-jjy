@@ -1,10 +1,10 @@
 #ifndef BMPFONT_BMPFONT_HPP
 #define BMPFONT_BMPFONT_HPP
 
-#include "bmpfont/common.hpp"
-#include "bmpfont/font4.hpp"
-#include "bmpfont/font5.hpp"
-#include "bmpfont/font12.hpp"
-#include "bmpfont/font16.hpp"
+#include "shapoco/tinyfont/tinyfont.hpp"
+#include "fonts/font4.hpp"
+#include "fonts/font5.hpp"
+#include "fonts/font12.hpp"
+#include "fonts/font16.hpp"
 
 #endif

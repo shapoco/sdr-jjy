@@ -1,4 +1,4 @@
-# ラズピコ JJY 受信機 (WIP)
+# SDR JJY (WIP)
 
 試行錯誤中。
 

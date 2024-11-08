@@ -70,9 +70,9 @@ public:
             int32_t r = WAVEFORM_BASE * fxp12::ONE + waveform[p] * WAVEFORM_RANGE;
             int32_t a = p * jjy::PHASE_PERIOD / WAVEFORM_PERIOD;
             a = jjy::phase_add(a, -disp_phase_offset);
-            a = a * fxp12::ANGLE_PERIOD / jjy::PHASE_PERIOD - fxp12::ANGLE_PERIOD / 4;
-            int x = cxf + fxp12::cos(a) * r / fxp12::ONE;
-            int y = cyf + fxp12::sin(a) * r / fxp12::ONE;
+            a = a * fxp12::PHASE_PERIOD / jjy::PHASE_PERIOD - fxp12::PHASE_PERIOD / 4;
+            int x = cxf + fxp12::fast_cos(a) * r / fxp12::ONE;
+            int y = cyf + fxp12::fast_sin(a) * r / fxp12::ONE;
             if (i > 0) {
                 lcd.draw_line_f(last_x, last_y, x, y, pen_t::WHITE);
                 lcd.set_pixel(fxp12::to_int(x), fxp12::to_int(y), pen_t::WHITE);
@@ -84,9 +84,9 @@ public:
         // カーソル描画
         {
             int32_t a = last_phase * jjy::PHASE_PERIOD / WAVEFORM_PERIOD;
-            a = jjy::phase_add(a, -disp_phase_offset) * fxp12::ANGLE_PERIOD / jjy::PHASE_PERIOD - fxp12::ANGLE_PERIOD / 4;
-            int32_t x = fxp12::cos(a) * RADIUS;
-            int32_t y = fxp12::sin(a) * RADIUS;
+            a = jjy::phase_add(a, -disp_phase_offset) * fxp12::PHASE_PERIOD / jjy::PHASE_PERIOD - fxp12::PHASE_PERIOD / 4;
+            int32_t x = fxp12::fast_cos(a) * RADIUS;
+            int32_t y = fxp12::fast_sin(a) * RADIUS;
             lcd.draw_line_f(cxf + x / 2, cyf + y / 2, cxf + x, cyf + y, pen_t::WHITE);
         }
 

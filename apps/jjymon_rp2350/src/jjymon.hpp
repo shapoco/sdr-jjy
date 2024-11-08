@@ -40,6 +40,7 @@ typedef struct {
     shapoco::jjy::rx::rf_status_t rf;
     shapoco::jjy::rx::sync_status_t sync;
     shapoco::jjy::rx::Decoder::status_t dec;
+    uint32_t scope[shapoco::jjy::rx::QuadDetector::SCOPE_SIZE];
 } receiver_status_t;
 
 extern shapoco::pico::atomic<receiver_status_t> glb_receiver_status;

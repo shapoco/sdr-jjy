@@ -86,6 +86,7 @@ void sdr_loop(void) {
         receiver.process(t_now_ms, dma_buff);
         
         sts.rf = receiver.rf.get_status();
+        receiver.rf.det.readScope(sts.scope);
         sts.sync = receiver.sync.get_status();
         sts.dec = receiver.dec.get_status();
         glb_receiver_status.store(sts);

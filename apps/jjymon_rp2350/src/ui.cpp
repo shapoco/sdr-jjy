@@ -44,6 +44,7 @@ static jjy::JjyDateTime disp_date_time;
 
 static void render_gain_meter(uint32_t t_now_ms, int x0, int y0);
 static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0);
+static void render_scope(uint64_t t_ms, int x0, int y0, const receiver_status_t &sts);
 static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val);
 static void render_sync_status(uint32_t t_now_ms);
 static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t &sts);
@@ -78,7 +79,8 @@ void ui_loop(void) {
             lcd.clear();
 
             render_gain_meter(t_now_ms, 0, 0);
-            render_quarity_meter(t_now_ms, 0, 20);
+            render_quarity_meter(t_now_ms, 0, 18);
+            render_scope(t_now_ms, 0, 18 * 2, sts);
 
             bit_table.render(t_now_ms, lcd, LCD_W - bit_table.WIDTH, 0, sts);
 
@@ -150,17 +152,34 @@ static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0) {
     lcd.draw_string(fonts::font5, x0 + 22, y0, s);
 }
 
+static void render_scope(uint64_t t_ms, int x0, int y0, const receiver_status_t &sts) {
+    int w = jjy::rx::QuadDetector::SCOPE_SIZE;
+    const uint32_t *scope = sts.scope;
+    for (int x = 0; x < w; x++) {
+        uint32_t val = scope[x];
+        for (int y = 0; y < 8; y++) {
+            val = (val >> 2) | (val & 3);
+            val = (val >> 1) | (val & 1);
+            if (val & 1) {
+                lcd.set_pixel(x0 + x, y0 + y);
+            }
+            val >>= 1;
+        }
+
+    }
+}
+
 static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val) {
-    constexpr int32_t A_PERIOD = fxp12::ANGLE_PERIOD * 45 / 360;
+    constexpr int32_t A_PERIOD = fxp12::PHASE_PERIOD * 45 / 360;
     constexpr int RADIUS_MAX = 40;
     constexpr int RADIUS_MIN = RADIUS_MAX - 10;
 
     lcd.draw_bitmap(x0, y0, bmp_meter_frame);
     
     val = FXP_CLIP(0, fxp12::ONE, val);
-    int32_t a = (fxp12::ANGLE_PERIOD * 3 / 4 - A_PERIOD / 2) + (A_PERIOD * val) / fxp12::ONE;
-    int32_t sin = fxp12::sin(a);
-    int32_t cos = fxp12::cos(a);
+    int32_t a = (fxp12::PHASE_PERIOD * 3 / 4 - A_PERIOD / 2) + (A_PERIOD * val) / fxp12::ONE;
+    int32_t sin = fxp12::fast_sin(a);
+    int32_t cos = fxp12::fast_cos(a);
     int32_t cx = (x0 + 16) * fxp12::ONE;
     int32_t cy = (y0 + RADIUS_MAX) * fxp12::ONE + fxp12::ONE / 2;
     int32_t lx0 = cx + cos * (RADIUS_MAX - 1);

@@ -426,10 +426,15 @@ public:
         int32_t bias = pre_bias.bias;
         int32_t gain = pre_agc.gain;
         for (int i = 0; i < DETECTION_BLOCK_SIZE; i++) {
+            // DC オフセット
             ave += in[i];
             int32_t biased = in[i] - bias;
+            
+            // AGC
             amp += JJY_ABS(biased);
-            agc_out[i] = biased * gain / ONE;
+            int32_t gained = biased * gain / ONE;
+            
+            agc_out[i] = gained;
         }
         ave = JJY_ROUND_DIV(ave, DETECTION_BLOCK_SIZE);
         amp = JJY_ROUND_DIV(amp, DETECTION_BLOCK_SIZE);

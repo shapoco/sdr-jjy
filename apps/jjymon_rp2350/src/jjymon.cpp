@@ -16,7 +16,7 @@ int main(void) {
 
 namespace shapoco::jjymon {
 
-::shapoco::pico::atomic<receiver_status_t> glb_receiver_status;
+shapoco::pico::atomic<receiver_status_t> glb_receiver_status;
 
 void main(void) {
     // クロック設定

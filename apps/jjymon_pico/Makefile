@@ -42,7 +42,7 @@ FONT_CPP_LIST = \
 	$(FONT_SRC_DIR)/$(FONT12_NAME).cpp \
 	$(FONT_SRC_DIR)/$(FONT16_NAME).cpp
 
-SRC_LIST=\
+DEPENDENCY_LIST=\
 	$(wildcard $(SRC_DIR)/*.*) \
 	$(wildcard $(SRC_DIR)/fonts/*.*) \
 	$(wildcard $(LIB_DIR)/shapoco/*.*) \
@@ -55,7 +55,7 @@ all: $(BIN)
 fonts: $(FONT_HPP_LIST)
 images: $(IMAGES_HPP)
 
-$(BIN): $(SRC_LIST) $(FONT_HPP_LIST) CMakeLists.txt
+$(BIN): $(DEPENDENCY_LIST) $(FONT_HPP_LIST) CMakeLists.txt
 	mkdir -p $(BUILD_DIR)
 	cd $(BUILD_DIR) \
 		&& cmake -DPICO_BOARD=$(BOARD) -DCMAKE_BUILD_TYPE=Debug .. \
@@ -124,10 +124,11 @@ $(FONT_SRC_DIR)/$(FONT16_NAME).cpp : $(FONT_BMP_DIR)/$(FONT16_NAME).png $(FONT_C
 		--cpp_namespace $(APP_NAMESPACE)::fonts \
 		--code-offset 32
 
-install: $(BIN)
-	sudo mkdir -p /mnt/e
-	sudo mount -t drvfs e: /mnt/e
-	cp $(BIN) /mnt/e/.
+ifneq ("$(wildcard install.mk)", "")
+include install.mk
+else
+include install.sample.wsl.mk
+endif
 
 debug: $(BIN)
 	gdb-multiarch -ex "target remote localhost:3333" $(BIN)

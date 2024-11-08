@@ -67,11 +67,12 @@ $(BIN): $(DEPENDENCY_LIST) $(FONT_HPP_LIST) CMakeLists.txt
 	@echo $(BIN)
 	@ls -l $(BIN)
 
-$(IMAGES_HPP): $(IMAGES_CPP) $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
+$(IMAGES_HPP): $(IMAGES_CPP)
+	@echo -n ""
+
 $(IMAGES_CPP): $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
 	rm -f $(IMAGES_CPP) $(IMAGES_HPP)
-	@echo "#ifndef JJYMON_IMAGES_HPP" >> $(IMAGES_HPP)
-	@echo "#define JJYMON_IMAGES_HPP" >> $(IMAGES_HPP)
+	@echo "#pragma once" >> $(IMAGES_HPP)
 	@echo >> $(IMAGES_HPP)
 	@echo "#include <stdint.h>" >> $(IMAGES_HPP)
 	@echo "namespace $(APP_NAMESPACE) {" >> $(IMAGES_HPP)
@@ -83,46 +84,19 @@ $(IMAGES_CPP): $(IMAGES_SRC_LIST) $(IMAGES_CPP_GEN_CMD)
 	$(IMAGES_CPP_GEN_CMD) --outcpp $(IMAGES_CPP) --outhpp $(IMAGES_HPP) --src $(BMP_DIR)/icon_beat.png --name bmp_icon_beat
 	@echo >> $(IMAGES_HPP)
 	@echo "}" >> $(IMAGES_HPP)
-	@echo "#endif" >> $(IMAGES_HPP)
 	@echo >> $(IMAGES_CPP)
 	@echo "}" >> $(IMAGES_CPP)
 
-$(FONT_SRC_DIR)/$(FONT4_NAME).hpp : $(FONT_SRC_DIR)/$(FONT4_NAME).cpp $(FONT_BMP_DIR)/$(FONT4_NAME).png
-$(FONT_SRC_DIR)/$(FONT4_NAME).cpp : $(FONT_BMP_DIR)/$(FONT4_NAME).png $(FONT_CPP_GEN_CMD)
-	$(FONT_CPP_GEN_CMD) \
-		--src $< \
-		--name $(FONT4_NAME) \
-		--outdir $(FONT_SRC_DIR) \
-		--cpp_namespace $(APP_NAMESPACE)::fonts \
-		--code-offset 32
+$(FONT_SRC_DIR)/%.hpp: $(FONT_SRC_DIR)/%.cpp
+	@echo -n ""
 
-$(FONT_SRC_DIR)/$(FONT5_NAME).hpp : $(FONT_SRC_DIR)/$(FONT5_NAME).cpp $(FONT_BMP_DIR)/$(FONT5_NAME).png
-$(FONT_SRC_DIR)/$(FONT5_NAME).cpp : $(FONT_BMP_DIR)/$(FONT5_NAME).png $(FONT_CPP_GEN_CMD)
+$(FONT_SRC_DIR)/%.cpp: $(FONT_BMP_DIR)/%.png $(FONT_CPP_GEN_CMD)
 	$(FONT_CPP_GEN_CMD) \
 		--src $< \
-		--name $(FONT5_NAME) \
+		--name $(patsubst $(FONT_BMP_DIR)/%.png,%,$<) \
 		--outdir $(FONT_SRC_DIR) \
 		--cpp_namespace $(APP_NAMESPACE)::fonts \
-		--code-offset 32
-
-$(FONT_SRC_DIR)/$(FONT12_NAME).hpp : $(FONT_SRC_DIR)/$(FONT12_NAME).cpp $(FONT_BMP_DIR)/$(FONT12_NAME).png
-$(FONT_SRC_DIR)/$(FONT12_NAME).cpp : $(FONT_BMP_DIR)/$(FONT12_NAME).png $(FONT_CPP_GEN_CMD)
-	$(FONT_CPP_GEN_CMD) \
-		--src $< \
-		--name $(FONT12_NAME) \
-		--outdir $(FONT_SRC_DIR) \
-		--cpp_namespace $(APP_NAMESPACE)::fonts \
-		--code-offset 32 \
-		--spacing 1
-
-$(FONT_SRC_DIR)/$(FONT16_NAME).hpp : $(FONT_SRC_DIR)/$(FONT16_NAME).cpp $(FONT_BMP_DIR)/$(FONT16_NAME).png
-$(FONT_SRC_DIR)/$(FONT16_NAME).cpp : $(FONT_BMP_DIR)/$(FONT16_NAME).png $(FONT_CPP_GEN_CMD)
-	$(FONT_CPP_GEN_CMD) \
-		--src $< \
-		--name $(FONT16_NAME) \
-		--outdir $(FONT_SRC_DIR) \
-		--cpp_namespace $(APP_NAMESPACE)::fonts \
-		--code-offset 32
+		$(shell cat $(patsubst %.png,%.args.txt,$<))
 
 ifneq ("$(wildcard install.mk)", "")
 include install.mk

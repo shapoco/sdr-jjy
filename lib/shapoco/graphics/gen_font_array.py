@@ -194,12 +194,9 @@ with open(f'{args.outdir}/{args.name}.cpp', 'w') as f:
     f.write('}\n')
 
 with open(f'{args.outdir}/{args.name}.hpp', 'w') as f:
-    include_guard_symbol = f'{args.incdir}_{args.name}_HPP'.upper().replace('/', '_')
-    f.write(f'#ifndef {include_guard_symbol}\n')
-    f.write(f'#define {include_guard_symbol}\n')
+    f.write(f'#pragma once\n')
     f.write('\n')
     f.write(f'#include "{args.incdir}/tiny_font.hpp"\n\n')
     f.write(f'namespace {args.cpp_namespace} {{\n\n')
     f.write(f'extern {LIB_NAMESPCAE}::TinyFont {args.name};\n\n')
-    f.write('}\n\n')
-    f.write('#endif\n')
+    f.write('}\n')

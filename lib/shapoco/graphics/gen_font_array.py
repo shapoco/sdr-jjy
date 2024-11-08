@@ -7,13 +7,16 @@ import numpy as np
 
 import argparse
 
+LIB_NAMESPCAE = 'shapoco::graphics'
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--src', required=True)
 parser.add_argument('-n', '--name', required=True)
 parser.add_argument('-o', '--outdir', required=True)
-parser.add_argument('-i', '--incdir', default='shapoco/tinyfont')
+parser.add_argument('-i', '--incdir', default='shapoco/graphics')
 parser.add_argument('-t', '--height', type=int, default=-1)
 parser.add_argument('-c', '--code-offset', type=int, required=True)
+parser.add_argument('--cpp_namespace', default=LIB_NAMESPCAE)
 parser.add_argument('--spacing', type=int, default=-1)
 args = parser.parse_args()
 
@@ -118,13 +121,14 @@ chars = chars[first_valid_code - args.code_offset:last_valid_code + 1 - args.cod
 
 data_array_name = f'{args.name}_data'
 index_array_name = f'{args.name}_index'
-namespace = 'bmpfont'
 
 index = 0
 with open(f'{args.outdir}/{args.name}.cpp', 'w') as f:
     f.write('#include <stdint.h>\n\n')
     f.write(f'#include "{args.incdir}/tinyfont.hpp"\n\n')
-    f.write(f'namespace {namespace} {{\n\n')
+    f.write(f'namespace {args.cpp_namespace} {{\n\n')
+    if args.cpp_namespace != LIB_NAMESPCAE:
+        f.write(f'using namespace {LIB_NAMESPCAE};\n\n')
     f.write(f'static const uint8_t {data_array_name}[] = {{\n')
     for ci in chars:
         ci.index = index
@@ -195,7 +199,9 @@ with open(f'{args.outdir}/{args.name}.hpp', 'w') as f:
     f.write(f'#define {include_guard_symbol}\n')
     f.write('\n')
     f.write(f'#include "{args.incdir}/tinyfont.hpp"\n\n')
-    f.write(f'namespace {namespace} {{\n\n')
-    f.write(f'extern Font {args.name};\n\n')
+    f.write(f'namespace {args.cpp_namespace} {{\n\n')
+    if args.cpp_namespace != LIB_NAMESPCAE:
+        f.write(f'using namespace {LIB_NAMESPCAE};\n\n')
+    f.write(f'extern shapoco::graphics::Font {args.name};\n\n')
     f.write('}\n\n')
     f.write('#endif\n')

@@ -20,6 +20,8 @@ enum class jjybit_t : uint8_t {
     ERROR = 3,
 };
 
+#define JJY_STATIC_INLINE static inline __attribute__((always_inline))
+
 #define JJY_ABS(x) ((x) >= 0 ? (x) : -(x))
 #define JJY_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define JJY_MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -68,11 +70,10 @@ static void phase_follow(int32_t *x, int32_t goal, int32_t ratio) {
 
 // 平方根を速く求める
 // http://senta.s112.xrea.com/senta/Tips/000/c6/index.html
-static inline uint32_t fast_sqrt(const uint32_t x) {
-    if (x == 0) return 0;
-    if (x == 1) return 1;
-    
-    int ret;
+JJY_STATIC_INLINE int32_t fast_sqrt(const int32_t x) {
+    if (x <= 1) return x;
+
+    int32_t ret;
     if (x <= 38408) ret = (x >> 7) + 11;
     else if (x <= 1411319) ret = (x >> 10) + 210;
     else if (x <= 70459124) ret = (x >> 13) + 1414;

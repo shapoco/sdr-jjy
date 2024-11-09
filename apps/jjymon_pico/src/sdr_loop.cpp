@@ -60,6 +60,7 @@ void sdr_init(void) {
     dma_adc.init();
     sleep_ms(100);
 
+    //receiver.init(jjy::EAST_40KHZ, to_ms_since_boot(get_absolute_time()));
     receiver.init(jjy::WEST_60KHZ, to_ms_since_boot(get_absolute_time()));
 }
 

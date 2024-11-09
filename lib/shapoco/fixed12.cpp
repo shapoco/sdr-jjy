@@ -10,7 +10,7 @@ int32_t sin_table[PHASE_PERIOD];
 void init_tables(void) {
     if (table_inited) return;
     for (int a = 0; a < PHASE_PERIOD; a++) {
-        sin_table[a] = round(::sin(a * 2 * M_PI / PHASE_PERIOD) * ONE);
+        sin_table[a] = round(sin(a * 2 * M_PI / PHASE_PERIOD) * ONE);
     }
     table_inited = true;
 }

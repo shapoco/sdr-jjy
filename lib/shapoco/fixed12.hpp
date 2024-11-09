@@ -28,12 +28,12 @@ int32_t log2(int32_t x);
 static FXP_INLINE int to_int(int32_t x) { return x >> PREC; }
 static FXP_INLINE int round_to_int(int32_t x) { return to_int(x + (ONE / 2)); }
 
-static FXP_INLINE void interp(int32_t *var, int32_t goal, int32_t ratio) {
-    int32_t diff = goal - *var;
-    if (diff == 0) return;
+static FXP_INLINE int32_t follow(int32_t val, int32_t goal, int32_t ratio) {
+    int32_t diff = goal - val;
+    if (diff == 0) return val;
     int32_t step = diff * ratio / ONE;
     if (step == 0) step = diff >= 0 ? 1 : -1;
-    *var += step;
+    return val + step;
 }
 
 static FXP_INLINE int32_t phase_norm(int32_t x, int32_t offset = 0) {

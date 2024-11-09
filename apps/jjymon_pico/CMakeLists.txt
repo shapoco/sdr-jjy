@@ -5,13 +5,15 @@ set(PICO_SDK_PATH $ENV{PICO_SDK_PATH})
 include(${PICO_SDK_PATH}/pico_sdk_init.cmake)
 
 project(jjymon C CXX ASM)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
 
 # Initialize the SDK
 pico_sdk_init()
 
 add_executable(jjymon)
+
+target_compile_options(jjymon PUBLIC -O2 -Wall)
+target_compile_features(jjymon PUBLIC c_std_11)
+target_compile_features(jjymon PUBLIC cxx_std_17)
 
 set(SRC_DIR src)
 set(LIB_DIR ../../lib)

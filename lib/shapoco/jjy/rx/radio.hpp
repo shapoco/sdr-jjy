@@ -13,7 +13,7 @@
 #include "shapoco/jjy/anti_chattering.hpp"
 
 #include "shapoco/jjy/rx/common.hpp"
-#include "shapoco/jjy/rx/quad_detector.hpp"
+#include "shapoco/jjy/rx/diff_detector.hpp"
 
 #include "shapoco/lazy_timer.hpp"
 
@@ -317,8 +317,9 @@ public:
         // 信号品質測定
         int32_t range = det_peak - det_base;
         int32_t thresh = (det_peak + det_base) / 2;
-        int32_t qty = JJY_CLIP(0, jjy::ONE, JJY_ABS(in - thresh) * jjy::ONE / (range / 2));
-        accum_quality_value += qty;
+        int32_t qtyA = JJY_CLIP(0, jjy::ONE, JJY_ABS(in - thresh) * jjy::ONE / (range / 2));
+        int32_t qtyB = JJY_CLIP(0, jjy::ONE, range * ONE / det_peak);
+        accum_quality_value += qtyA * qtyB / ONE;
         accum_quality_count += 1;
         if (quality_history_update_timer.is_expired(t_now_ms)) {
             quality_history.push(accum_quality_value / accum_quality_count);
@@ -337,10 +338,8 @@ public:
         accum_peak = 0;
 
         // レベルのピーク値を取得
-        if (base_history.size() > 0) {
-            det_base = base_history.min();
-            det_peak = peak_history.max();
-        }
+        det_base = base_history.min();
+        det_peak = peak_history.max();
 
         // スレッショルド更新
         thresh = (det_base + det_peak) / 2;
@@ -358,7 +357,7 @@ public:
 #else
     Agc_Deprecated agc;
 #endif
-    QuadDetector det;
+    DifferentialDetector det;
     Binarizer bin;
 
 private:
@@ -391,7 +390,7 @@ public:
         agc.process(t_now_ms, in, agc_out, DETECTION_BLOCK_SIZE);
 #endif
 
-        // 直交検波
+        // 検波器
         int32_t det_anl_out_raw = det.process(t_now_ms, agc_out);
 
         // フィルター
@@ -420,11 +419,12 @@ public:
 #ifdef USE_NEW_AGC
     void preBiasAgc(uint64_t t_ms, const uint16_t *in) {
         constexpr int32_t HALF_PI = 3.1415926535f * ONE / 2;
+        constexpr int BIAS_PREC = 4;
 
         int32_t ave = 0;
         int32_t amp = 0;
-        int32_t bias = pre_bias.bias;
-        int32_t gain = pre_agc.gain;
+        int32_t bias = JJY_ROUND_DIV(pre_bias.curr_bias, (1 << BIAS_PREC));
+        int32_t gain = pre_agc.curr_gain;
         for (int i = 0; i < DETECTION_BLOCK_SIZE; i++) {
             // DC オフセット
             ave += in[i];
@@ -433,10 +433,10 @@ public:
             // AGC
             amp += JJY_ABS(biased);
             int32_t gained = biased * gain / ONE;
-            
+
             agc_out[i] = gained;
         }
-        ave = JJY_ROUND_DIV(ave, DETECTION_BLOCK_SIZE);
+        ave = JJY_ROUND_DIV(ave * (1 << BIAS_PREC), DETECTION_BLOCK_SIZE);
         amp = JJY_ROUND_DIV(amp, DETECTION_BLOCK_SIZE);
         amp = JJY_ROUND_DIV(amp * HALF_PI, ONE);
 
@@ -445,7 +445,7 @@ public:
         
         status.adc_amplitude_raw = amp;
         status.adc_amplitude_peak = pre_agc.amplitude_peak;
-        status.agc_gain = pre_agc.gain;
+        status.agc_gain = pre_agc.curr_gain;
     }
 #endif
 

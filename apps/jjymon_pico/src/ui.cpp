@@ -101,7 +101,7 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
     constexpr bool SMOOTH_SCALE = true;
 
     if (SMOOTH_SCALE) {
-        fxp12::interp(&gain_meter_scale, sts.rf.agc_gain, fxp12::ONE / 4);
+        gain_meter_scale = fxp12::follow(gain_meter_scale, sts.rf.agc_gain, fxp12::ONE / 4);
     }
     else {
         if (sts.rf.agc_gain > gain_meter_scale * 3 / 2) {
@@ -114,7 +114,7 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
 
     //int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc_Deprecated::GOAL_AMPLITUDE * 5 / 4);
     int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::ONE * 5 / 4);
-    fxp12::interp(&gain_meter_curr, goal, fxp12::ONE / 2);
+    gain_meter_curr = fxp12::follow(gain_meter_curr, goal, fxp12::ONE / 2);
     
     lcd.draw_string(fonts::font5, x0, y0, "AMP");
 
@@ -137,12 +137,11 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
 }
 
 static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0) {
-    fxp12::interp(&qty_meter_curr, sts.sync.bit_det_quality, fxp12::ONE / 8);
-#if 1
-    int32_t qty = qty_meter_curr * sts.rf.signal_quarity / jjy::ONE;
-#else
+    qty_meter_curr = fxp12::follow(qty_meter_curr, sts.sync.bit_det_quality, fxp12::ONE / 8);
+
+    //int32_t qty = qty_meter_curr * sts.rf.signal_quarity / jjy::ONE;
     int32_t qty = (qty_meter_curr + sts.rf.signal_quarity) / 2;
-#endif
+    //int32_t qty = sts.rf.signal_quarity;
 
     lcd.draw_string(fonts::font5, x0, y0, "QTY");
     render_meter(t_now_ms, 0, y0 + 6, qty);
@@ -153,7 +152,7 @@ static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0) {
 }
 
 static void render_scope(uint64_t t_ms, int x0, int y0, const receiver_status_t &sts) {
-    int w = jjy::rx::QuadDetector::SCOPE_SIZE;
+    int w = jjy::rx::DifferentialDetector::SCOPE_SIZE;
     const uint32_t *scope = sts.scope;
     for (int x = 0; x < w; x++) {
         uint32_t val = scope[x];

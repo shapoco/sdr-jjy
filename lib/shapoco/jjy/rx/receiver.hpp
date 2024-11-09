@@ -2,7 +2,7 @@
 
 #include "shapoco/jjy/common.hpp"
 #include "shapoco/jjy/rx/common.hpp"
-#include "shapoco/jjy/rx/radio.hpp"
+#include "shapoco/jjy/rx/rf.hpp"
 #include "shapoco/jjy/rx/synchronizer.hpp"
 #include "shapoco/jjy/rx/decoder.hpp"
 

@@ -6,10 +6,10 @@ namespace shapoco::ssd1306 {
 
 static constexpr int PAGE_HEIGHT = 8;
 
-typedef enum : bool {
-    CMD = false,
+enum class dc_t : bool {
+    COMMAND = false,
     DATA = true,
-} dc_t;
+};
 
 typedef enum {
     SET_MEM_MODE        = 0x20,

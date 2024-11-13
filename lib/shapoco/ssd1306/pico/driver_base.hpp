@@ -55,31 +55,31 @@ public:
         
         setDisp(false);
 
-        writeCmd(cmd_t::SET_MUX_RATIO, H - 1);
-        writeCmd(cmd_t::SET_DISP_OFFSET, 0);
-        writeCmd(cmd_t::SET_DISP_START_LINE);
-        writeCmd(cmd_t::SET_SEG_REMAP | 0x01);
-        writeCmd(cmd_t::SET_COM_OUT_DIR | 0x08);
-        writeCmd(cmd_t::SET_COM_PIN_CFG, 
+        writeCommand(cmd_t::SET_MUX_RATIO, H - 1);
+        writeCommand(cmd_t::SET_DISP_OFFSET, 0);
+        writeCommand(cmd_t::SET_DISP_START_LINE);
+        writeCommand(cmd_t::SET_SEG_REMAP | 0x01);
+        writeCommand(cmd_t::SET_COM_OUT_DIR | 0x08);
+        writeCommand(cmd_t::SET_COM_PIN_CFG, 
             (W == 128 && H == 32) ? 0x02 :
             (W == 128 && H == 64) ? 0x12 : 0x02);
-        writeCmd(cmd_t::SET_CONTRAST, 0xFF);
-        writeCmd(cmd_t::SET_ENTIRE_ON);
-        writeCmd(cmd_t::SET_NORM_DISP);
-        writeCmd(cmd_t::SET_DISP_CLK_DIV, 0x80);
-        writeCmd(cmd_t::SET_CHARGE_PUMP, 0x14);
+        writeCommand(cmd_t::SET_CONTRAST, 0xFF);
+        writeCommand(cmd_t::SET_ENTIRE_ON);
+        writeCommand(cmd_t::SET_NORM_DISP);
+        writeCommand(cmd_t::SET_DISP_CLK_DIV, 0x80);
+        writeCommand(cmd_t::SET_CHARGE_PUMP, 0x14);
         
         for (int page = 0; page < NUM_PAGES; page++) {
-            writeCmd(cmd_t::SET_COL_ADDR, 0, W - 1);
-            writeCmd(cmd_t::SET_PAGE_ADDR, page, page);
-            writeData(frontBuff.pagePtr(page), sizeof(seg_t) * W);
+            writeCommand(cmd_t::SET_COL_ADDR, 0, W - 1);
+            writeCommand(cmd_t::SET_PAGE_ADDR, page, page);
+            writeDataBlocking(frontBuff.pagePtr(page), sizeof(seg_t) * W);
         }
 
         setDisp(true);
     }
 
     void setDisp(bool on) {
-        writeCmd(cmd_t::SET_DISP | (on ? 0x01 : 0x00));
+        writeCommand(cmd_t::SET_DISP | (on ? 0x01 : 0x00));
     }
 
     void commit(const Screen &backBuff) {
@@ -129,10 +129,9 @@ public:
             SegRange &dirty = dirtyRanges[currPage];
             bool empty = dirty.empty();
             if (!empty) {
-                writeCmd(cmd_t::SET_COL_ADDR, dirty.from, dirty.to - 1);
-                writeCmd(cmd_t::SET_PAGE_ADDR, currPage, currPage);
-                //writeDataDmaStart(dc_t::DATA, front_buff.back_buff + W * curr_page, sizeof(seg_t) * W);
-                writeData(frontBuff.pagePtr(currPage) + dirty.from, sizeof(seg_t) * dirty.size());
+                writeCommand(cmd_t::SET_COL_ADDR, dirty.from, dirty.to - 1);
+                writeCommand(cmd_t::SET_PAGE_ADDR, currPage, currPage);
+                writeDataAsync(frontBuff.pagePtr(currPage) + dirty.from, sizeof(seg_t) * dirty.size());
                 dirty.clear();
             }
             
@@ -148,28 +147,29 @@ public:
         }
     }
 
-    void writeCmd(uint8_t cmd) {
+    void writeCommand(uint8_t cmd) {
         const uint8_t buf[] = { cmd };
-        writeBlocking(dc_t::CMD, buf, sizeof(buf));
+        writeBlocking(dc_t::COMMAND, buf, sizeof(buf));
     }
 
-    void writeCmd(uint8_t cmd, uint8_t param0) {
+    void writeCommand(uint8_t cmd, uint8_t param0) {
         const uint8_t buf[] = { cmd, param0 };
-        writeBlocking(dc_t::CMD, buf, sizeof(buf));
+        writeBlocking(dc_t::COMMAND, buf, sizeof(buf));
     }
 
-    void writeCmd(uint8_t cmd, uint8_t param0, uint8_t param1) {
+    void writeCommand(uint8_t cmd, uint8_t param0, uint8_t param1) {
         const uint8_t buf[] = { cmd, param0, param1 };
-        writeBlocking(dc_t::CMD, buf, sizeof(buf));
+        writeBlocking(dc_t::COMMAND, buf, sizeof(buf));
     }
 
-    void writeData(const void *src, size_t size_in_bytes) {
+    void writeDataBlocking(const void *src, size_t size_in_bytes) {
         writeBlocking(dc_t::DATA, src, size_in_bytes);
     }
+    
+    virtual void writeDataAsync(const void *src, size_t size_in_bytes) = 0;
+    virtual void writeDataFlush() = 0;
 
     virtual void writeBlocking(dc_t dc, const void *src, size_t size_in_bytes) = 0;
-    virtual void writeDataDmaStart(dc_t dc, const void *src, size_t size_in_bytes) = 0;
-    virtual void writeDataDmaComplete() = 0;
     virtual bool isDmaBusy() = 0;
 };
 

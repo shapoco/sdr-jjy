@@ -14,6 +14,8 @@
 #include "shapoco/ssd1306/pico/driver_base.hpp"
 #include "shapoco/ssd1306/ssd1306.hpp"
 
+#define SHAPOCO_SSD1306_PICO_SPI_ENABLE_DMA (1)
+
 namespace shapoco::ssd1306::pico {
 
 template<int W, int H, int SPI_INDEX, int PIN_RES_N, int PIN_CS_N, int PIN_DC, int PIN_SCLK, int PIN_MOSI, uint32_t SPI_FREQ = 1000 * 1000>
@@ -35,7 +37,7 @@ public:
 
         gpio_put(PIN_RES_N, false);
         gpio_put(PIN_CS_N, true);
-        gpio_put(PIN_DC, dc_t::CMD);
+        gpio_put(PIN_DC, false);
 
         gpio_set_dir(PIN_RES_N, GPIO_OUT);
         gpio_set_dir(PIN_CS_N, GPIO_OUT);
@@ -45,9 +47,9 @@ public:
         gpio_set_function(PIN_SCLK, GPIO_FUNC_SPI);
         gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
 
-        sleep_ms(100); // check
+        sleep_ms(10);
         gpio_put(PIN_RES_N, true);
-        sleep_ms(100); // check
+        sleep_ms(10);
 
         dma_ch = dma_claim_unused_channel(true);
         dma_cfg = dma_channel_get_default_config(dma_ch);
@@ -57,32 +59,41 @@ public:
         base::init();
     }
 
-    void writeBlocking(dc_t dc, const void *src, size_t size_in_bytes) override {
-        writeDataDmaComplete();
-        spiSelect(dc);
-        spi_write_blocking(spi, (const uint8_t*)src, size_in_bytes);
-        spiDeselect();
+    void writeDataAsync(const void *src, size_t sizeInBytes) override {
+#if SHAPOCO_SSD1306_PICO_SPI_ENABLE_DMA
+        writeDataFlush();
+        spiSelect(dc_t::DATA);
+        dma_channel_configure(dma_ch, &dma_cfg, &spi_get_hw(spi)->dr, src, sizeInBytes, true); 
+#else
+        this->writeDataBlocking(src, sizeInBytes);
+#endif
     }
 
-    void writeDataDmaStart(dc_t dc, const void *src, size_t size_in_bytes) override {
-        writeDataDmaComplete();
-        spiSelect(dc);
-        dma_channel_configure(dma_ch, &dma_cfg, &spi_get_hw(spi)->dr, src, size_in_bytes, true); 
-    }
-
-    void writeDataDmaComplete() override {
+    void writeDataFlush() override {
         if (isDmaBusy()) {
             dma_channel_wait_for_finish_blocking(dma_ch);
+            while (isSpiPeripheralBusy()) { }
         }
         spiDeselect();
     }
 
+    void writeBlocking(dc_t dc, const void *src, size_t sizeInBytes) override {
+        writeDataFlush();
+        spiSelect(dc);
+        spi_write_blocking(spi, (const uint8_t*)src, sizeInBytes);
+        spiDeselect();
+    }
+
     bool isDmaBusy() override {
-        return dma_channel_is_busy(dma_ch);
+        return dma_channel_is_busy(dma_ch) || isSpiPeripheralBusy();
+    }
+
+    bool isSpiPeripheralBusy() {
+        return (spi_get_hw(spi)->sr & 0x10) != 0;
     }
 
     void spiSelect(dc_t dc) {
-        gpio_put(PIN_DC, dc);
+        gpio_put(PIN_DC, dc == dc_t::DATA);
         gpio_put(PIN_CS_N, false);
         sleep_us(10);
     }

@@ -54,6 +54,7 @@ static void render_date_time(uint64_t t_ms, ssd1306::Screen &screen, const recei
 void ui_init(void) {
     uint64_t t = to_us_since_boot(get_absolute_time()) / 1000;
     spiLcd.init();
+    i2cLcd.resetI2cBus();
     i2cLcd.init();
     bit_table.init(t);
 }

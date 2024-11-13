@@ -46,6 +46,7 @@ target_link_libraries(
     hardware_pwm
     hardware_adc
     hardware_spi
+    hardware_i2c
 )
 
 pico_enable_stdio_usb(jjymon 1)

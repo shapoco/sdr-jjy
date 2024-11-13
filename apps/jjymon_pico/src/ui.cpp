@@ -31,7 +31,8 @@ static receiver_status_t sts;
 
 static constexpr int FPS = 50;
 
-static JjySpiLcd lcd;
+static JjySpiLcd spiLcd;
+static JjyI2cLcd i2cLcd;
 static ssd1306::Screen screen(LCD_W, LCD_H);
 
 static Rader rader;
@@ -52,7 +53,8 @@ static void render_date_time(uint64_t t_ms, ssd1306::Screen &screen, const recei
 
 void ui_init(void) {
     uint64_t t = to_us_since_boot(get_absolute_time()) / 1000;
-    lcd.init();
+    spiLcd.init();
+    i2cLcd.init();
     bit_table.init(t);
 }
 
@@ -89,10 +91,12 @@ void ui_loop(void) {
 
             render_date_time(t_now_ms, screen, sts);
 
-            lcd.commit(screen);
+            spiLcd.commit(screen);
+            i2cLcd.commit(screen);
         }
 
-        lcd.service();
+        spiLcd.service();
+        i2cLcd.service();
     }
 }
 

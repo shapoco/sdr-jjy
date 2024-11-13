@@ -19,17 +19,26 @@ static constexpr uint32_t ADC_SPS = shapoco::jjy::rx::DETECTION_INPUT_SPS;
 static constexpr uint32_t DMA_SIZE = shapoco::jjy::rx::DETECTION_BLOCK_SIZE;
 
 static constexpr int LCD_SPI_INDEX = 0;
+static constexpr int PIN_SPI_LCD_CS_N = 17;
+static constexpr int PIN_SPI_LCD_SCLK = 18;
+static constexpr int PIN_SPI_LCD_MOSI = 19;
+static constexpr int PIN_SPI_LCD_RES_N = 20;
+static constexpr int PIN_SPI_LCD_DC = 21;
 static constexpr uint32_t LCD_SPI_FREQ = 2e6;
-static constexpr int PIN_LCD_CS_N = 17;
-static constexpr int PIN_LCD_SCLK = 18;
-static constexpr int PIN_LCD_MOSI = 19;
-static constexpr int PIN_LCD_RES_N = 20;
-static constexpr int PIN_LCD_DC = 21;
+
+//static constexpr int LCD_I2C_INDEX = 0;
+//static constexpr int PIN_I2C_LCD_SDA = 12;
+//static constexpr int PIN_I2C_LCD_SCL = 13;
+static constexpr int LCD_I2C_INDEX = 1;
+static constexpr int PIN_I2C_LCD_SDA = 14;
+static constexpr int PIN_I2C_LCD_SCL = 15;
+static constexpr int LCD_I2C_ADDR = 0x3c;
+static constexpr uint32_t LCD_I2C_FREQ = 1e6;
 
 static constexpr int PIN_ADC_IN = 26;
 static constexpr int PIN_LED_OUT = 25;
 static constexpr int PIN_SPEAKER_OUT = 28;
-static constexpr int PIN_LAMP_OUT = 15;
+static constexpr int PIN_LAMP_OUT = 10;
 
 static constexpr uint32_t SPEAKER_FREQ = 440;
 static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;

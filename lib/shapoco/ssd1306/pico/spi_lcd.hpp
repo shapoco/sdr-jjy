@@ -16,7 +16,7 @@
 
 namespace shapoco::ssd1306::pico {
 
-template<int W, int H, int SPI_INDEX, uint32_t SPI_FREQ, int PIN_RES_N, int PIN_CS_N, int PIN_DC, int PIN_SCLK, int PIN_MOSI>
+template<int W, int H, int SPI_INDEX, int PIN_RES_N, int PIN_CS_N, int PIN_DC, int PIN_SCLK, int PIN_MOSI, uint32_t SPI_FREQ = 1000 * 1000>
 class SpiLcd : public DriverBase<W, H> {
 private:
     using base = DriverBase<W, H>;
@@ -45,9 +45,6 @@ public:
         gpio_set_function(PIN_SCLK, GPIO_FUNC_SPI);
         gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
 
-        //bi_decl(bi_2pins_with_func(PIN_MISO, PIN_MOSI, PIN_SCLK, GPIO_FUNC_SPI));
-        //bi_decl(bi_1pin_with_name(PIN_CS_N, "SPI CS"));
-
         sleep_ms(100); // check
         gpio_put(PIN_RES_N, true);
         sleep_ms(100); // check
@@ -61,19 +58,19 @@ public:
     }
 
     void writeBlocking(const dc_t dc, const void *src, const size_t size_in_bytes) override {
-        writeDmaComplete();
+        writeDataDmaComplete();
         spiSelect(dc);
         spi_write_blocking(spi, (const uint8_t*)src, size_in_bytes);
         spiDeselect();
     }
 
-    void writeDmaStart(const dc_t dc, const void *src, const size_t size_in_bytes) override {
-        writeDmaComplete();
+    void writeDataDmaStart(const dc_t dc, const void *src, const size_t size_in_bytes) override {
+        writeDataDmaComplete();
         spiSelect(dc);
         dma_channel_configure(dma_ch, &dma_cfg, &spi_get_hw(spi)->dr, src, size_in_bytes, true); 
     }
 
-    void writeDmaComplete() override {
+    void writeDataDmaComplete() override {
         if (isDmaBusy()) {
             dma_channel_wait_for_finish_blocking(dma_ch);
         }

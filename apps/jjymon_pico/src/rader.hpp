@@ -3,8 +3,8 @@
 #include "shapoco/fixed12.hpp"
 #include "shapoco/jjy/jjy.hpp"
 #include "shapoco/graphics/graphics.hpp"
-#include "shapoco/graphics/ssd130x/ssd130x.hpp"
-#include "shapoco/pico/ssd1309spi.hpp"
+#include "shapoco/ssd1306/ssd1306.hpp"
+#include "shapoco/pico/ssd1306/spi_lcd.hpp"
 
 #include "jjymon.hpp"
 #include "ui.hpp"
@@ -14,7 +14,7 @@
 namespace shapoco::jjymon {
 
 using namespace ::shapoco::graphics;
-using pen_t = ::shapoco::graphics::ssd130x::pen_t;
+using pen_t = ::shapoco::ssd1306::pen_t;
 
 class Rader {
 public:
@@ -52,7 +52,7 @@ public:
         }
     }
 
-    void render(uint32_t t_now_ms, int rx0, int ry0, ssd130x::Screen &lcd, const receiver_status_t &sts) {
+    void render(uint32_t t_now_ms, int rx0, int ry0, ssd1306::Screen &lcd, const receiver_status_t &sts) {
         int32_t delay_phase = (sts.rf.anti_chat_delay_ms + sts.rf.det_delay_ms) * jjy::PHASE_PERIOD / 1000; // 検波器の遅延
         int32_t goal_phase_offset = jjy::phase_add(sts.sync.phase_offset, -delay_phase);
         jjy::phase_follow(&disp_phase_offset, goal_phase_offset, jjy::ONE / 16);

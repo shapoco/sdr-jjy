@@ -11,44 +11,13 @@
 
 #include "shapoco/fixed12.hpp"
 #include "shapoco/graphics/graphics.hpp"
-#include "shapoco/graphics/ssd130x/ssd130x.hpp"
+#include "shapoco/ssd1306/ssd1306.hpp"
 
-namespace shapoco::pico {
+#include "shapoco/pico/ssd1306/common.hpp"
+
+namespace shapoco::ssd1306::pico {
 
 using namespace shapoco::graphics;
-using namespace shapoco::graphics::ssd130x;
-
-using seg_t = uint8_t;
-
-typedef enum : bool {
-    CMD = false,
-    DATA = true,
-} dc_t;
-
-typedef enum {
-    SET_MEM_MODE        = 0x20,
-    SET_COL_ADDR        = 0x21,
-    SET_PAGE_ADDR       = 0x22,
-    SET_HORIZ_SCROLL    = 0x26,
-    SET_SCROLL          = 0x2E,
-    SET_DISP_START_LINE = 0x40,
-    SET_CONTRAST        = 0x81,
-    SET_CHARGE_PUMP     = 0x8D,
-    SET_SEG_REMAP       = 0xA0,
-    SET_ENTIRE_ON       = 0xA4,
-    SET_ALL_ON          = 0xA5,
-    SET_NORM_DISP       = 0xA6,
-    SET_INV_DISP        = 0xA7,
-    SET_MUX_RATIO       = 0xA8,
-    SET_DISP            = 0xAE,
-    SET_COM_OUT_DIR     = 0xC0,
-    SET_COM_OUT_DIR_FLIP= 0xC0,
-    SET_DISP_OFFSET     = 0xD3,
-    SET_DISP_CLK_DIV    = 0xD5,
-    SET_PRECHARGE       = 0xD9,
-    SET_COM_PIN_CFG     = 0xDA,
-    SET_VCOM_DESEL      = 0xDB,
-} cmd_t;
 
 template<int W, int H, int SPI_INDEX, uint32_t SPI_FREQ, int PIN_RES_N, int PIN_CS_N, int PIN_DC, int PIN_SCLK, int PIN_MOSI>
 class Ssd1309Spi {
@@ -139,7 +108,7 @@ public:
         write_cmd(cmd_t::SET_DISP | (on ? 0x01 : 0x00));
     }
 
-    void commit(const ssd130x::Screen &back_buff) {
+    void commit(const Screen &back_buff) {
         memcpy(screen.data, back_buff.data, NUM_SEGS * sizeof(seg_t));
         num_sent_pages = 0;
     }

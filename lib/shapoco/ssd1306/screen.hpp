@@ -8,9 +8,11 @@
 #include "shapoco/fixed12.hpp"
 #include "shapoco/graphics/common.hpp"
 #include "shapoco/graphics/tiny_font.hpp"
-#include "shapoco/graphics/ssd130x/common.hpp"
+#include "shapoco/ssd1306/common.hpp"
 
-namespace shapoco::graphics::ssd130x {
+namespace shapoco::ssd1306 {
+
+using namespace shapoco::graphics;
 
 class Screen {
 public:

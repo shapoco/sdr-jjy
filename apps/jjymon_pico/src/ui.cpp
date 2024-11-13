@@ -8,9 +8,9 @@
 #include "ui.hpp"
 
 #include "shapoco/graphics/graphics.hpp"
-#include "shapoco/graphics/ssd130x/ssd130x.hpp"
+#include "shapoco/ssd1306/ssd1306.hpp"
 #include "shapoco/pico/atomic.hpp"
-#include "shapoco/pico/ssd1309spi.hpp"
+#include "shapoco/pico/ssd1306/spi_lcd.hpp"
 #include "shapoco/jjy/jjy.hpp"
 #include "shapoco/fixed12.hpp"
 
@@ -33,7 +33,7 @@ static receiver_status_t sts;
 static constexpr int FPS = 50;
 
 static JjyLcd lcd;
-static ssd130x::Screen screen(LCD_W, LCD_H);
+static ssd1306::Screen screen(LCD_W, LCD_H);
 
 static Rader rader;
 static BufferView bit_table;
@@ -45,12 +45,12 @@ static int32_t qty_meter_curr = 0;
 static jjy::JjyDateTime goal_date_time;
 static jjy::JjyDateTime disp_date_time;
 
-static void render_gain_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0);
-static void render_quarity_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0);
-static void render_scope(uint64_t t_ms, ssd130x::Screen &screen, int x0, int y0, const receiver_status_t &sts);
-static void render_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0, int32_t val);
-static void render_sync_status(uint32_t t_now_ms, ssd130x::Screen &screen);
-static void render_date_time(uint64_t t_ms, ssd130x::Screen &screen, const receiver_status_t &sts);
+static void render_gain_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0);
+static void render_quarity_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0);
+static void render_scope(uint64_t t_ms, ssd1306::Screen &screen, int x0, int y0, const receiver_status_t &sts);
+static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0, int32_t val);
+static void render_sync_status(uint32_t t_now_ms, ssd1306::Screen &screen);
+static void render_date_time(uint64_t t_ms, ssd1306::Screen &screen, const receiver_status_t &sts);
 
 void ui_init(void) {
     uint64_t t = to_us_since_boot(get_absolute_time()) / 1000;
@@ -100,7 +100,7 @@ void ui_loop(void) {
     }
 }
 
-static void render_gain_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0) {
+static void render_gain_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0) {
     constexpr bool SMOOTH_SCALE = true;
 
     if (SMOOTH_SCALE) {
@@ -139,7 +139,7 @@ static void render_gain_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0
     render_meter(t_now_ms, screen, 0, y0 + 6, gain_meter_curr);
 }
 
-static void render_quarity_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0) {
+static void render_quarity_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0) {
     qty_meter_curr = fxp12::follow(qty_meter_curr, sts.sync.bit_det_quality, fxp12::ONE / 8);
 
     //int32_t qty = qty_meter_curr * sts.rf.signal_quarity / jjy::ONE;
@@ -154,7 +154,7 @@ static void render_quarity_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int
     screen.draw_string(fonts::font5, x0 + 22, y0, s);
 }
 
-static void render_scope(uint64_t t_ms, ssd130x::Screen &screen, int x0, int y0, const receiver_status_t &sts) {
+static void render_scope(uint64_t t_ms, ssd1306::Screen &screen, int x0, int y0, const receiver_status_t &sts) {
     int w = jjy::rx::DifferentialDetector::SCOPE_SIZE;
     const uint32_t *scope = sts.scope;
     for (int x = 0; x < w; x++) {
@@ -171,7 +171,7 @@ static void render_scope(uint64_t t_ms, ssd130x::Screen &screen, int x0, int y0,
     }
 }
 
-static void render_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0, int32_t val) {
+static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0, int32_t val) {
     constexpr int32_t A_PERIOD = fxp12::PHASE_PERIOD * 45 / 360;
     constexpr int RADIUS_MAX = 40;
     constexpr int RADIUS_MIN = RADIUS_MAX - 10;
@@ -192,7 +192,7 @@ static void render_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int
     screen.draw_line_f(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
 }
 
-static void render_sync_status(uint32_t t_now_ms, ssd130x::Screen &screen) {
+static void render_sync_status(uint32_t t_now_ms, ssd1306::Screen &screen) {
     int x = 0;
     int y = LCD_H - 18;
     const TinyFont &font = fonts::font16;
@@ -203,7 +203,7 @@ static void render_sync_status(uint32_t t_now_ms, ssd130x::Screen &screen) {
     }
 }
 
-static void render_date_time(uint64_t t_ms, ssd130x::Screen &lcd, const receiver_status_t &sts) { 
+static void render_date_time(uint64_t t_ms, ssd1306::Screen &lcd, const receiver_status_t &sts) { 
     const jjy::JjyDateTime &dt = sts.dec.last_date_time;
     char s[32];
     const int sts_y = LCD_H - 12 - 6;

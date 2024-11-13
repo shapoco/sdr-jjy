@@ -1,4 +1,4 @@
 #pragma once
 
-#include "shapoco/graphics/ssd130x/common.hpp"
-#include "shapoco/graphics/ssd130x/screen.hpp"
+#include "shapoco/ssd1306/common.hpp"
+#include "shapoco/ssd1306/screen.hpp"

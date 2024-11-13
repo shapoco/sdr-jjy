@@ -13,7 +13,7 @@
 
 using namespace shapoco::graphics;
 
-void lcd_demo_render(JjyLcd &lcd, uint32_t t_now_ms) {
+void lcd_demo_render(JjySpiLcd &lcd, uint32_t t_now_ms) {
     const int32_t xline = 43;
     const int32_t xelip = 80;
 

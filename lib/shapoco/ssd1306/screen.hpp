@@ -19,24 +19,24 @@ public:
     static constexpr int PAGE_H = 8;
 
     const int width, height;
-    const int num_pages = (height + PAGE_H - 1) / PAGE_H;
-    const int num_segs = width * num_pages;
+    const int numPages = (height + PAGE_H - 1) / PAGE_H;
+    const int sizeBytes = width * numPages;
 
     uint8_t * const data;
 
     Screen(int w, int h) :
         width(w),
         height(h),
-        num_pages(SHPC_CEIL_DIV(h, PAGE_H)),
-        num_segs(w * num_pages),
-        data(new uint8_t[num_segs]) { }
+        numPages(SHPC_CEIL_DIV(h, PAGE_H)),
+        sizeBytes(w * numPages),
+        data(new uint8_t[sizeBytes]) { }
 
     ~Screen() {
         delete[] data;
     }
 
     void clear(seg_t c = 0x00) {
-        memset(data, c, num_segs * sizeof(seg_t));
+        memset(data, c, sizeBytes * sizeof(seg_t));
     }
 
     inline int get_seg_index(int x, int y) {

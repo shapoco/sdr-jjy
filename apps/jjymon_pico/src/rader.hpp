@@ -3,8 +3,7 @@
 #include "shapoco/fixed12.hpp"
 #include "shapoco/jjy/jjy.hpp"
 #include "shapoco/graphics/graphics.hpp"
-#include "shapoco/ssd1306/ssd1306.hpp"
-#include "shapoco/pico/ssd1306/spi_lcd.hpp"
+#include "shapoco/ssd1306/pico/spi_lcd.hpp"
 
 #include "jjymon.hpp"
 #include "ui.hpp"

@@ -48,6 +48,8 @@ DEPENDENCY_LIST=\
 	$(wildcard $(LIB_DIR)/shapoco/*.*) \
 	$(wildcard $(LIB_DIR)/shapoco/graphics/*.*) \
 	$(wildcard $(LIB_DIR)/shapoco/pico/*.*) \
+	$(wildcard $(LIB_DIR)/shapoco/ssd1306/*.*) \
+	$(wildcard $(LIB_DIR)/shapoco/ssd1306/pico/*.*) \
 	$(wildcard $(LIB_DIR)/shapoco/jjy/*.*) \
 	$(wildcard $(LIB_DIR)/shapoco/jjy/rx/*.*)
 

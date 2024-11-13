@@ -8,9 +8,8 @@
 #include "ui.hpp"
 
 #include "shapoco/graphics/graphics.hpp"
-#include "shapoco/ssd1306/ssd1306.hpp"
 #include "shapoco/pico/atomic.hpp"
-#include "shapoco/pico/ssd1306/spi_lcd.hpp"
+#include "shapoco/ssd1306/pico/spi_lcd.hpp"
 #include "shapoco/jjy/jjy.hpp"
 #include "shapoco/fixed12.hpp"
 
@@ -32,7 +31,7 @@ static receiver_status_t sts;
 
 static constexpr int FPS = 50;
 
-static JjyLcd lcd;
+static JjySpiLcd lcd;
 static ssd1306::Screen screen(LCD_W, LCD_H);
 
 static Rader rader;
@@ -49,7 +48,6 @@ static void render_gain_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0
 static void render_quarity_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0);
 static void render_scope(uint64_t t_ms, ssd1306::Screen &screen, int x0, int y0, const receiver_status_t &sts);
 static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0, int32_t val);
-static void render_sync_status(uint32_t t_now_ms, ssd1306::Screen &screen);
 static void render_date_time(uint64_t t_ms, ssd1306::Screen &screen, const receiver_status_t &sts);
 
 void ui_init(void) {
@@ -89,8 +87,6 @@ void ui_loop(void) {
 
             rader.render(t_now_ms, 40, 0, screen, sts);
 
-            //render_sync_status(t_now_ms);
-
             render_date_time(t_now_ms, screen, sts);
 
             lcd.commit(screen);
@@ -128,10 +124,10 @@ static void render_gain_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0
     }
     else {
         if (gain_meter_scale >= jjy::ONE) {
-            sprintf(s, "x%1d", gain_meter_scale / jjy::ONE);
+            sprintf(s, "x%1d", (int)(gain_meter_scale / jjy::ONE));
         }
         else {
-            sprintf(s, "/%1d", jjy::ONE / gain_meter_scale);
+            sprintf(s, "/%1d", (int)(jjy::ONE / gain_meter_scale));
         }
     }
     screen.draw_string(fonts::font5, scale_text_x, y0, s);
@@ -150,7 +146,7 @@ static void render_quarity_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int
     render_meter(t_now_ms, screen, 0, y0 + 6, qty);
     
     char s[8];
-    sprintf(s, "%d", qty * 100 / jjy::ONE);
+    sprintf(s, "%d", (int)(qty * 100 / jjy::ONE));
     screen.draw_string(fonts::font5, x0 + 22, y0, s);
 }
 
@@ -192,17 +188,6 @@ static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int
     screen.draw_line_f(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
 }
 
-static void render_sync_status(uint32_t t_now_ms, ssd1306::Screen &screen) {
-    int x = 0;
-    int y = LCD_H - 18;
-    const TinyFont &font = fonts::font16;
-    if (!sts.sync.phase_locked) {
-        screen.draw_string(font, x, y, "SYNC...");
-        y += font.height - 2;
-        screen.fill_rect(x, y, (LCD_W / 2) * sts.sync.phase_lock_progress / jjy::ONE, 2);
-    }
-}
-
 static void render_date_time(uint64_t t_ms, ssd1306::Screen &lcd, const receiver_status_t &sts) { 
     const jjy::JjyDateTime &dt = sts.dec.last_date_time;
     char s[32];
@@ -237,19 +222,19 @@ static void render_date_time(uint64_t t_ms, ssd1306::Screen &lcd, const receiver
         empty = false;
     }
     else {
-        sprintf(s, "ERROR CODE = 0x%x", sts.dec.last_parse_result.flags);
+        sprintf(s, "ERROR CODE = 0x%x", (int)(sts.dec.last_parse_result.flags));
         lcd.draw_string(fonts::font5, 0, sts_y, s);
     }
  
     static int tmp_t = 0;
     if ((tmp_t++) % 3 == 0) {
-        disp_date_time.year = (disp_date_time.year / 100 < goal_date_time.year / 100) ? disp_date_time.year += 100 : goal_date_time.year;
-        disp_date_time.year = (disp_date_time.year < goal_date_time.year) ? disp_date_time.year += 1 : goal_date_time.year;
-        disp_date_time.month = (disp_date_time.month < goal_date_time.month) ? disp_date_time.month += 1 : goal_date_time.month;
-        disp_date_time.day = (disp_date_time.day < goal_date_time.day) ? disp_date_time.day += 1 : goal_date_time.day;
-        disp_date_time.hours = (disp_date_time.hours < goal_date_time.hours) ? disp_date_time.hours += 1 : goal_date_time.hours;
-        disp_date_time.minutes = (disp_date_time.minutes < goal_date_time.minutes) ? disp_date_time.minutes += 1 : goal_date_time.minutes;
-        disp_date_time.second = (disp_date_time.second < goal_date_time.second) ? disp_date_time.second += 1 : goal_date_time.second;
+        disp_date_time.year = (disp_date_time.year / 100 < goal_date_time.year / 100) ? disp_date_time.year + 100 : goal_date_time.year;
+        disp_date_time.year = (disp_date_time.year < goal_date_time.year) ? disp_date_time.year + 1 : goal_date_time.year;
+        disp_date_time.month = (disp_date_time.month < goal_date_time.month) ? disp_date_time.month + 1 : goal_date_time.month;
+        disp_date_time.day = (disp_date_time.day < goal_date_time.day) ? disp_date_time.day + 1 : goal_date_time.day;
+        disp_date_time.hours = (disp_date_time.hours < goal_date_time.hours) ? disp_date_time.hours + 1 : goal_date_time.hours;
+        disp_date_time.minutes = (disp_date_time.minutes < goal_date_time.minutes) ? disp_date_time.minutes + 1 : goal_date_time.minutes;
+        disp_date_time.second = (disp_date_time.second < goal_date_time.second) ? disp_date_time.second + 1 : goal_date_time.second;
     }
 
     if (empty) {

@@ -10,7 +10,6 @@
 
 #include "shapoco/jjy/jjy.hpp"
 #include "shapoco/pico/atomic.hpp"
-#include "shapoco/ssd1306/ssd1306.hpp"
 
 namespace shapoco::jjymon {
 

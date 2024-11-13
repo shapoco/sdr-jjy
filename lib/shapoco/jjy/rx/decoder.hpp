@@ -78,18 +78,17 @@ public:
             }
         }
         else {
-            int bi10 = bit_index / 10;
-            int bi1 = bit_index % 10;
+            int mod10 = bit_index % 10;
             if (bit_index == 0 && in == jjybit_t::MARKER) {
                 new_action = action_t::TICK_CONTINUE;
             }
             else if (bit_index == 59 && in == jjybit_t::MARKER) {
                 new_action = action_t::TICK_WRAP;
             }
-            else if (bi1 < 9 && in != jjybit_t::MARKER) {
+            else if (mod10 < 9 && in != jjybit_t::MARKER) {
                 new_action = action_t::TICK_CONTINUE;
             }
-            else if (bi1 == 9 && in == jjybit_t::MARKER) {
+            else if (mod10 == 9 && in == jjybit_t::MARKER) {
                 new_action = action_t::TICK_CONTINUE;
             }
             else {

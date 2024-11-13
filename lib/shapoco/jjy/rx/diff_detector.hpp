@@ -36,7 +36,7 @@ public:
         
         int32_t sum = 0;
         int32_t delay = (freq == freq_t::EAST_40KHZ) ? DETECTION_RESOLUTION * 3 / 2 : DETECTION_RESOLUTION;
-        for (int i = 0; i < DETECTION_BLOCK_SIZE; i++) {
+        for (int i = 0; i < (int)DETECTION_BLOCK_SIZE; i++) {
             int32_t sample_c = in[i];
             int32_t sample_d = in [(i + delay) % DETECTION_BLOCK_SIZE];
             int32_t mul = JJY_ABS(sample_c + sample_d) / 2;

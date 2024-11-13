@@ -65,8 +65,8 @@ public:
         int x = rect.x;
         int y = rect.y;
         int w = rect.w;
-        int h = rect.h;
-        int r = rect.r();
+        //int h = rect.h;
+        //int r = rect.r();
         int b = rect.b();
 
         int first_page = y / PAGE_HEIGHT;
@@ -85,7 +85,7 @@ public:
                 ~(seg_t)0;
             seg_t *wr_ptr = &data[p * width + x];
 
-            if (~mask == 0) {
+            if (((seg_t)~mask) == 0) {
                 memset(wr_ptr, c == pen_t::BLACK ? 0x00 : 0xff, w * sizeof(seg_t));
             }
             else if (c == pen_t::BLACK) {
@@ -164,7 +164,6 @@ public:
         const int dy0 = dest_rect.y;
         const int dx1 = dest_rect.r();
         const int dy1 = dest_rect.b();
-        constexpr int R_MUL = (1 << 4);
         
         // 楕円内かどうかをピクセル中心で判定するため 0.5px オフセットする
         int yf = dy0 * fxp12::ONE + (fxp12::ONE / 2);

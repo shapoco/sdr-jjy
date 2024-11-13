@@ -148,27 +148,27 @@ public:
         }
     }
 
-    void writeCmd(const uint8_t cmd) {
+    void writeCmd(uint8_t cmd) {
         const uint8_t buf[] = { cmd };
         writeBlocking(dc_t::CMD, buf, sizeof(buf));
     }
 
-    void writeCmd(const uint8_t cmd, const uint8_t param0) {
+    void writeCmd(uint8_t cmd, uint8_t param0) {
         const uint8_t buf[] = { cmd, param0 };
         writeBlocking(dc_t::CMD, buf, sizeof(buf));
     }
 
-    void writeCmd(const uint8_t cmd, const uint8_t param0, const uint8_t param1) {
+    void writeCmd(uint8_t cmd, uint8_t param0, uint8_t param1) {
         const uint8_t buf[] = { cmd, param0, param1 };
         writeBlocking(dc_t::CMD, buf, sizeof(buf));
     }
 
-    void writeData(const void *src, const size_t size_in_bytes) {
+    void writeData(const void *src, size_t size_in_bytes) {
         writeBlocking(dc_t::DATA, src, size_in_bytes);
     }
 
-    virtual void writeBlocking(const dc_t dc, const void *src, const size_t size_in_bytes) = 0;
-    virtual void writeDataDmaStart(const dc_t dc, const void *src, const size_t size_in_bytes) = 0;
+    virtual void writeBlocking(dc_t dc, const void *src, size_t size_in_bytes) = 0;
+    virtual void writeDataDmaStart(dc_t dc, const void *src, size_t size_in_bytes) = 0;
     virtual void writeDataDmaComplete() = 0;
     virtual bool isDmaBusy() = 0;
 };

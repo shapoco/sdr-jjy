@@ -425,7 +425,7 @@ public:
         int32_t amp = 0;
         int32_t bias = JJY_ROUND_DIV(pre_bias.curr_bias, (1 << BIAS_PREC));
         int32_t gain = pre_agc.curr_gain;
-        for (int i = 0; i < DETECTION_BLOCK_SIZE; i++) {
+        for (int i = 0; i < (int)DETECTION_BLOCK_SIZE; i++) {
             // DC オフセット
             ave += in[i];
             int32_t biased = in[i] - bias;

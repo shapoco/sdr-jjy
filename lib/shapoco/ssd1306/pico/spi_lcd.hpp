@@ -57,14 +57,14 @@ public:
         base::init();
     }
 
-    void writeBlocking(const dc_t dc, const void *src, const size_t size_in_bytes) override {
+    void writeBlocking(dc_t dc, const void *src, size_t size_in_bytes) override {
         writeDataDmaComplete();
         spiSelect(dc);
         spi_write_blocking(spi, (const uint8_t*)src, size_in_bytes);
         spiDeselect();
     }
 
-    void writeDataDmaStart(const dc_t dc, const void *src, const size_t size_in_bytes) override {
+    void writeDataDmaStart(dc_t dc, const void *src, size_t size_in_bytes) override {
         writeDataDmaComplete();
         spiSelect(dc);
         dma_channel_configure(dma_ch, &dma_cfg, &spi_get_hw(spi)->dr, src, size_in_bytes, true); 

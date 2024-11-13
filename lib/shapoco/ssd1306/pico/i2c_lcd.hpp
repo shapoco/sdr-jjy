@@ -51,12 +51,12 @@ public:
         base::init();
     }
 
-    void writeBlocking(const dc_t dc, const void *src, const size_t sizeInBytes) override {
+    void writeBlocking(dc_t dc, const void *src, size_t sizeInBytes) override {
         writeDataDmaComplete();
         size_t txBuffSize;
         if (dc == dc_t::CMD) {
             const uint8_t *srcBytes = (const uint8_t *)src;
-            for (int i = 0; i < sizeInBytes; i++) {
+            for (size_t i = 0; i < sizeInBytes; i++) {
                 txBuff[i * 2 + 0] = 0x80;
                 txBuff[i * 2 + 1] = srcBytes[i];
             }
@@ -70,7 +70,7 @@ public:
         i2c_write_blocking(i2c, I2C_ADDR, txBuff, txBuffSize, false);
     }
 
-    void writeDataDmaStart(const dc_t dc, const void *src, const size_t sizeInBytes) override {
+    void writeDataDmaStart(dc_t dc, const void *src, size_t sizeInBytes) override {
         writeDataDmaComplete();
         i2c_hw_t *hw = i2c_get_hw(i2c);
         hw->enable = 0;

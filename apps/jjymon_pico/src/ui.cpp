@@ -193,7 +193,6 @@ static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int
 }
 
 static void render_date_time(uint64_t t_ms, ssd1306::Screen &lcd, const receiver_status_t &sts) { 
-    const jjy::JjyDateTime &dt = sts.dec.last_date_time;
     char s[32];
     const int sts_y = LCD_H - 12 - 6;
     const int guage_x = LCD_W / 2;

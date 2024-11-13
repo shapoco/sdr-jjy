@@ -4,6 +4,8 @@
 
 namespace shapoco::ssd1306 {
 
+static constexpr int PAGE_HEIGHT = 8;
+
 typedef enum : bool {
     CMD = false,
     DATA = true,

@@ -24,7 +24,7 @@ static constexpr int PIN_SPI_LCD_SCLK = 18;
 static constexpr int PIN_SPI_LCD_MOSI = 19;
 static constexpr int PIN_SPI_LCD_RES_N = 20;
 static constexpr int PIN_SPI_LCD_DC = 21;
-static constexpr uint32_t LCD_SPI_FREQ = 2e6;
+static constexpr uint32_t LCD_SPI_FREQ = 1e6;
 
 //static constexpr int LCD_I2C_INDEX = 0;
 //static constexpr int PIN_I2C_LCD_SDA = 12;
@@ -33,7 +33,7 @@ static constexpr int LCD_I2C_INDEX = 1;
 static constexpr int PIN_I2C_LCD_SDA = 14;
 static constexpr int PIN_I2C_LCD_SCL = 15;
 static constexpr int LCD_I2C_ADDR = 0x3c;
-static constexpr uint32_t LCD_I2C_FREQ = 1e6;
+static constexpr uint32_t LCD_I2C_FREQ = 400e3;
 
 static constexpr int PIN_ADC_IN = 26;
 static constexpr int PIN_LED_OUT = 25;

@@ -16,10 +16,8 @@ using namespace shapoco::graphics;
 
 class Screen {
 public:
-    static constexpr int PAGE_H = 8;
-
     const int width, height;
-    const int numPages = (height + PAGE_H - 1) / PAGE_H;
+    const int numPages = (height + PAGE_HEIGHT - 1) / PAGE_HEIGHT;
     const int sizeBytes = width * numPages;
 
     uint8_t * const data;
@@ -27,7 +25,7 @@ public:
     Screen(int w, int h) :
         width(w),
         height(h),
-        numPages(SHPC_CEIL_DIV(h, PAGE_H)),
+        numPages(SHPC_CEIL_DIV(h, PAGE_HEIGHT)),
         sizeBytes(w * numPages),
         data(new uint8_t[sizeBytes]) { }
 
@@ -39,13 +37,17 @@ public:
         memset(data, c, sizeBytes * sizeof(seg_t));
     }
 
-    inline int get_seg_index(int x, int y) {
-        return (y / PAGE_H) * width + x;
+    int get_seg_index(int x, int y) const {
+        return (y / PAGE_HEIGHT) * width + x;
+    }
+
+    seg_t *pagePtr(int page) const {
+        return &data[page * width];
     }
 
     void set_pixel(int x, int y, pen_t c = pen_t::WHITE) {
         if (x < 0 || width <= x || y < 0 || height <= y) return;
-        uint8_t mask = 1 << (y % PAGE_H);
+        uint8_t mask = 1 << (y % PAGE_HEIGHT);
         int iseg = get_seg_index(x, y);
         switch (c) {
         case pen_t::BLACK: data[iseg] &= ~mask; break;
@@ -67,10 +69,10 @@ public:
         int r = rect.r();
         int b = rect.b();
 
-        int first_page = y / PAGE_H;
-        int final_page = (b - 1) / PAGE_H;
-        seg_t first_seg = ~(seg_t)((1 << (y % PAGE_H)) - 1);
-        seg_t final_seg = (1 << (((b + PAGE_H - 1) % PAGE_H) + 1)) - 1;
+        int first_page = y / PAGE_HEIGHT;
+        int final_page = (b - 1) / PAGE_HEIGHT;
+        seg_t first_seg = ~(seg_t)((1 << (y % PAGE_HEIGHT)) - 1);
+        seg_t final_seg = (1 << (((b + PAGE_HEIGHT - 1) % PAGE_HEIGHT) + 1)) - 1;
         
         if (first_page == final_page) {
             first_seg &= final_seg;

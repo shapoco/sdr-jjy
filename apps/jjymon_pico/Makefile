@@ -63,9 +63,11 @@ $(BIN): $(DEPENDENCY_LIST) $(FONT_HPP_LIST) CMakeLists.txt
 	mkdir -p $(BIN_DIR)
 	cp $(BUILD_DIR)/$(BIN_NAME) $(BIN)
 	@echo "------------------------------"
+	@grep "todo" -r src/ ../../lib/
+	@echo "------------------------------"
 	@echo "UF2 File:"
 	@echo $(BIN)
-	@ls -l $(BIN)
+	@du -h $(BIN)
 
 $(IMAGES_HPP): $(IMAGES_CPP)
 	@echo -n ""

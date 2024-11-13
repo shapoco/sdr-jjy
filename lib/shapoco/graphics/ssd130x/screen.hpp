@@ -16,40 +16,38 @@ class Screen {
 public:
     static constexpr int PAGE_H = 8;
 
-    // todo: 小文字にする
-    const int W, H;
-    const int NUM_PAGES = (H + PAGE_H - 1) / PAGE_H;
-    const int NUM_SEGS = W * NUM_PAGES;
+    const int width, height;
+    const int num_pages = (height + PAGE_H - 1) / PAGE_H;
+    const int num_segs = width * num_pages;
 
-    // todo: リネーム
-    uint8_t * const back_buff;
+    uint8_t * const data;
 
     Screen(int w, int h) :
-        W(w),
-        H(h),
-        NUM_PAGES(SHPC_CEIL_DIV(h, PAGE_H)),
-        NUM_SEGS(w * NUM_PAGES),
-        back_buff(new uint8_t[NUM_SEGS]) { }
+        width(w),
+        height(h),
+        num_pages(SHPC_CEIL_DIV(h, PAGE_H)),
+        num_segs(w * num_pages),
+        data(new uint8_t[num_segs]) { }
 
     ~Screen() {
-        delete[] back_buff;
+        delete[] data;
     }
 
     void clear(seg_t c = 0x00) {
-        memset(back_buff, c, NUM_SEGS * sizeof(seg_t));
+        memset(data, c, num_segs * sizeof(seg_t));
     }
 
     inline int get_seg_index(int x, int y) {
-        return (y / PAGE_H) * W + x;
+        return (y / PAGE_H) * width + x;
     }
 
     void set_pixel(int x, int y, pen_t c = pen_t::WHITE) {
-        if (x < 0 || W <= x || y < 0 || H <= y) return;
+        if (x < 0 || width <= x || y < 0 || height <= y) return;
         uint8_t mask = 1 << (y % PAGE_H);
         int iseg = get_seg_index(x, y);
         switch (c) {
-        case pen_t::BLACK: back_buff[iseg] &= ~mask; break;
-        case pen_t::WHITE: back_buff[iseg] |= mask; break;
+        case pen_t::BLACK: data[iseg] &= ~mask; break;
+        case pen_t::WHITE: data[iseg] |= mask; break;
         }
     }
 
@@ -58,7 +56,7 @@ public:
     }
 
     void fill_rect(Rect rect, pen_t c = pen_t::WHITE) {
-        rect = clip_rect(rect, W, H);
+        rect = clip_rect(rect, width, height);
         if (rect.w <= 0 || rect.h <= 0) return;
         int x = rect.x;
         int y = rect.y;
@@ -81,7 +79,7 @@ public:
                 (p == first_page) ? first_seg :
                 (p == final_page) ? final_seg :
                 ~(seg_t)0;
-            seg_t *wr_ptr = &back_buff[p * W + x];
+            seg_t *wr_ptr = &data[p * width + x];
 
             if (~mask == 0) {
                 memset(wr_ptr, c == pen_t::BLACK ? 0x00 : 0xff, w * sizeof(seg_t));
@@ -152,7 +150,7 @@ public:
         dest_rect.y /= fxp12::ONE;
         dest_rect.w = r - dest_rect.x;
         dest_rect.h = b - dest_rect.y;
-        dest_rect = clip_rect(dest_rect, W, H);
+        dest_rect = clip_rect(dest_rect, width, height);
         if (dest_rect.w <= 0 || dest_rect.h <= 0) return;
         const int rxf = rectf.w / 2;
         const int ryf = rectf.h / 2;

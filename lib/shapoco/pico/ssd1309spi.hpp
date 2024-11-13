@@ -63,7 +63,6 @@ public:
         (W == 128 && H == 64) ||
         (W == 128 && H == 32));
 
-    // todo: リネーム
     Screen screen;
 
 private:
@@ -131,7 +130,7 @@ public:
 
         write_cmd(cmd_t::SET_COL_ADDR, 0, W - 1);
         write_cmd(cmd_t::SET_PAGE_ADDR, 0, H - 1);
-        write_blocking(dc_t::DATA, screen.back_buff, NUM_SEGS * sizeof(seg_t));
+        write_blocking(dc_t::DATA, screen.data, NUM_SEGS * sizeof(seg_t));
 
         set_disp(true);
     }
@@ -141,7 +140,7 @@ public:
     }
 
     void commit(const ssd130x::Screen &back_buff) {
-        memcpy(screen.back_buff, back_buff.back_buff, NUM_SEGS * sizeof(seg_t));
+        memcpy(screen.data, back_buff.data, NUM_SEGS * sizeof(seg_t));
         num_sent_pages = 0;
     }
 
@@ -150,7 +149,7 @@ public:
             write_cmd(cmd_t::SET_COL_ADDR, 0, W - 1);
             write_cmd(cmd_t::SET_PAGE_ADDR, curr_page, curr_page);
             //write_dma_start(dc_t::DATA, front_buff.back_buff + W * curr_page, sizeof(seg_t) * W);
-            write_blocking(dc_t::DATA, screen.back_buff + W * curr_page, sizeof(seg_t) * W);
+            write_blocking(dc_t::DATA, screen.data + W * curr_page, sizeof(seg_t) * W);
             num_sent_pages += 1;
             if (num_sent_pages < NUM_PAGES) {
                 curr_page = (curr_page + 1) % NUM_PAGES;

@@ -7,6 +7,7 @@
 #include "shapoco/jjy/jjy.hpp"
 #include "shapoco/fixed12.hpp"
 #include "shapoco/graphics/graphics.hpp"
+#include "shapoco/graphics/ssd130x/ssd130x.hpp"
 #include "shapoco/pico/ssd1309spi.hpp"
 
 #include "jjymon.hpp"
@@ -16,8 +17,8 @@
 
 namespace shapoco::jjymon {
 
-using namespace ::shapoco::graphics;
-using pen_t = ::shapoco::pico::pen_t;
+using namespace shapoco::graphics;
+using pen_t = shapoco::graphics::ssd130x::pen_t;
 
 class BufferView {
 public:
@@ -76,7 +77,7 @@ public:
         layout_rows(true);
     }
 
-    void render(uint64_t t_now_ms, JjyLcd &lcd, int x0, int y0, const receiver_status_t &sts) {
+    void render(uint64_t t_now_ms, ssd130x::Screen &lcd, int x0, int y0, const receiver_status_t &sts) {
         char s[16];
 
         if (sts.dec.toggle != last_toggle) {

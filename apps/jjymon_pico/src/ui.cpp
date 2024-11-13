@@ -7,6 +7,8 @@
 #include "jjymon.hpp"
 #include "ui.hpp"
 
+#include "shapoco/graphics/graphics.hpp"
+#include "shapoco/graphics/ssd130x/ssd130x.hpp"
 #include "shapoco/pico/atomic.hpp"
 #include "shapoco/pico/ssd1309spi.hpp"
 #include "shapoco/jjy/jjy.hpp"
@@ -31,6 +33,7 @@ static receiver_status_t sts;
 static constexpr int FPS = 50;
 
 static JjyLcd lcd;
+static ssd130x::Screen screen(LCD_W, LCD_H);
 
 static Rader rader;
 static BufferView bit_table;
@@ -42,12 +45,12 @@ static int32_t qty_meter_curr = 0;
 static jjy::JjyDateTime goal_date_time;
 static jjy::JjyDateTime disp_date_time;
 
-static void render_gain_meter(uint32_t t_now_ms, int x0, int y0);
-static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0);
-static void render_scope(uint64_t t_ms, int x0, int y0, const receiver_status_t &sts);
-static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val);
-static void render_sync_status(uint32_t t_now_ms);
-static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t &sts);
+static void render_gain_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0);
+static void render_quarity_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0);
+static void render_scope(uint64_t t_ms, ssd130x::Screen &screen, int x0, int y0, const receiver_status_t &sts);
+static void render_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0, int32_t val);
+static void render_sync_status(uint32_t t_now_ms, ssd130x::Screen &screen);
+static void render_date_time(uint64_t t_ms, ssd130x::Screen &screen, const receiver_status_t &sts);
 
 void ui_init(void) {
     uint64_t t = to_us_since_boot(get_absolute_time()) / 1000;
@@ -76,28 +79,28 @@ void ui_loop(void) {
 
         if (render_timer.is_expired(t_now_ms)) {
 
-            lcd.clear();
+            screen.clear();
 
-            render_gain_meter(t_now_ms, 0, 0);
-            render_quarity_meter(t_now_ms, 0, 18);
-            render_scope(t_now_ms, 0, 18 * 2, sts);
+            render_gain_meter(t_now_ms, screen, 0, 0);
+            render_quarity_meter(t_now_ms, screen, 0, 18);
+            render_scope(t_now_ms, screen, 0, 18 * 2, sts);
 
-            bit_table.render(t_now_ms, lcd, LCD_W - bit_table.WIDTH, 0, sts);
+            bit_table.render(t_now_ms, screen, LCD_W - bit_table.WIDTH, 0, sts);
 
-            rader.render(t_now_ms, 40, 0, lcd, sts);
+            rader.render(t_now_ms, 40, 0, screen, sts);
 
             //render_sync_status(t_now_ms);
 
-            render_date_time(t_now_ms, lcd, sts);
+            render_date_time(t_now_ms, screen, sts);
 
-            lcd.commit();
+            lcd.commit(screen);
         }
 
         lcd.service();
     }
 }
 
-static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
+static void render_gain_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0) {
     constexpr bool SMOOTH_SCALE = true;
 
     if (SMOOTH_SCALE) {
@@ -116,7 +119,7 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
     int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::ONE * 5 / 4);
     gain_meter_curr = fxp12::follow(gain_meter_curr, goal, fxp12::ONE / 2);
     
-    lcd.draw_string(fonts::font5, x0, y0, "AMP");
+    screen.draw_string(fonts::font5, x0, y0, "AMP");
 
     const int scale_text_x = x0 + 17;
     char s[8];
@@ -131,27 +134,27 @@ static void render_gain_meter(uint32_t t_now_ms, int x0, int y0) {
             sprintf(s, "/%1d", jjy::ONE / gain_meter_scale);
         }
     }
-    lcd.draw_string(fonts::font5, scale_text_x, y0, s);
+    screen.draw_string(fonts::font5, scale_text_x, y0, s);
 
-    render_meter(t_now_ms, 0, y0 + 6, gain_meter_curr);
+    render_meter(t_now_ms, screen, 0, y0 + 6, gain_meter_curr);
 }
 
-static void render_quarity_meter(uint32_t t_now_ms, int x0, int y0) {
+static void render_quarity_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0) {
     qty_meter_curr = fxp12::follow(qty_meter_curr, sts.sync.bit_det_quality, fxp12::ONE / 8);
 
     //int32_t qty = qty_meter_curr * sts.rf.signal_quarity / jjy::ONE;
     int32_t qty = (qty_meter_curr + sts.rf.signal_quarity) / 2;
     //int32_t qty = sts.rf.signal_quarity;
 
-    lcd.draw_string(fonts::font5, x0, y0, "QTY");
-    render_meter(t_now_ms, 0, y0 + 6, qty);
+    screen.draw_string(fonts::font5, x0, y0, "QTY");
+    render_meter(t_now_ms, screen, 0, y0 + 6, qty);
     
     char s[8];
     sprintf(s, "%d", qty * 100 / jjy::ONE);
-    lcd.draw_string(fonts::font5, x0 + 22, y0, s);
+    screen.draw_string(fonts::font5, x0 + 22, y0, s);
 }
 
-static void render_scope(uint64_t t_ms, int x0, int y0, const receiver_status_t &sts) {
+static void render_scope(uint64_t t_ms, ssd130x::Screen &screen, int x0, int y0, const receiver_status_t &sts) {
     int w = jjy::rx::DifferentialDetector::SCOPE_SIZE;
     const uint32_t *scope = sts.scope;
     for (int x = 0; x < w; x++) {
@@ -160,7 +163,7 @@ static void render_scope(uint64_t t_ms, int x0, int y0, const receiver_status_t 
             val = (val >> 2) | (val & 3);
             val = (val >> 1) | (val & 1);
             if (val & 1) {
-                lcd.set_pixel(x0 + x, y0 + y);
+                screen.set_pixel(x0 + x, y0 + y);
             }
             val >>= 1;
         }
@@ -168,12 +171,12 @@ static void render_scope(uint64_t t_ms, int x0, int y0, const receiver_status_t 
     }
 }
 
-static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val) {
+static void render_meter(uint32_t t_now_ms, ssd130x::Screen &screen, int x0, int y0, int32_t val) {
     constexpr int32_t A_PERIOD = fxp12::PHASE_PERIOD * 45 / 360;
     constexpr int RADIUS_MAX = 40;
     constexpr int RADIUS_MIN = RADIUS_MAX - 10;
 
-    lcd.draw_bitmap(x0, y0, bmp_meter_frame);
+    screen.draw_bitmap(x0, y0, bmp_meter_frame);
     
     val = FXP_CLIP(0, fxp12::ONE, val);
     int32_t a = (fxp12::PHASE_PERIOD * 3 / 4 - A_PERIOD / 2) + (A_PERIOD * val) / fxp12::ONE;
@@ -185,22 +188,22 @@ static void render_meter(uint32_t t_now_ms, int x0, int y0, int32_t val) {
     int32_t ly0 = cy + sin * (RADIUS_MAX - 1);
     int32_t lx1 = cx + cos * RADIUS_MIN;
     int32_t ly1 = cy + sin * RADIUS_MIN;
-    lcd.draw_line_f(lx0 - fxp12::ONE / 2, ly0, lx1 - fxp12::ONE / 2, ly1);
-    lcd.draw_line_f(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
+    screen.draw_line_f(lx0 - fxp12::ONE / 2, ly0, lx1 - fxp12::ONE / 2, ly1);
+    screen.draw_line_f(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
 }
 
-static void render_sync_status(uint32_t t_now_ms) {
+static void render_sync_status(uint32_t t_now_ms, ssd130x::Screen &screen) {
     int x = 0;
     int y = LCD_H - 18;
     const TinyFont &font = fonts::font16;
     if (!sts.sync.phase_locked) {
-        lcd.draw_string(font, x, y, "SYNC...");
+        screen.draw_string(font, x, y, "SYNC...");
         y += font.height - 2;
-        lcd.fill_rect(x, y, (LCD_W / 2) * sts.sync.phase_lock_progress / jjy::ONE, 2);
+        screen.fill_rect(x, y, (LCD_W / 2) * sts.sync.phase_lock_progress / jjy::ONE, 2);
     }
 }
 
-static void render_date_time(uint64_t t_ms, JjyLcd &lcd, const receiver_status_t &sts) { 
+static void render_date_time(uint64_t t_ms, ssd130x::Screen &lcd, const receiver_status_t &sts) { 
     const jjy::JjyDateTime &dt = sts.dec.last_date_time;
     char s[32];
     const int sts_y = LCD_H - 12 - 6;

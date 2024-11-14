@@ -2,4 +2,4 @@
 .vscode/
 build/
 bin/
-install.mk
+debug.mk

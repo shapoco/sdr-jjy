@@ -123,15 +123,15 @@ public:
         if (!gpio_get(PIN_SDA)) {
             for (int i = 0; i < 9; i++) {
                 gpio_set_dir(PIN_SCL, GPIO_OUT);
-                sleep_us(100);
+                sleep_us(10);
                 gpio_set_dir(PIN_SCL, GPIO_IN);
-                sleep_us(100);
+                sleep_us(10);
             }
         }
 
         gpio_set_function(PIN_SDA, GPIO_FUNC_I2C);
         gpio_set_function(PIN_SCL, GPIO_FUNC_I2C);
-        sleep_us(100);
+        sleep_us(10);
     }
 
 

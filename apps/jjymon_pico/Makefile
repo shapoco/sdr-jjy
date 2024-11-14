@@ -1,4 +1,4 @@
-.PHONY: all images fonts install launch-openocd clean distclean
+.PHONY: all images fonts launch-openocd clean distclean
 
 REPO_DIR = ../..
 LIB_DIR = $(REPO_DIR)/lib
@@ -9,7 +9,9 @@ BIN_DIR = bin/$(BOARD)
 BOARD := pico2
 
 BIN_NAME = jjymon.uf2
+ELF_NAME = jjymon.elf
 BIN = $(BIN_DIR)/$(BIN_NAME)
+ELF = $(BIN_DIR)/$(ELF_NAME)
 
 APP_NAMESPACE = shapoco::jjymon
 
@@ -64,12 +66,16 @@ $(BIN): $(DEPENDENCY_LIST) $(FONT_HPP_LIST) CMakeLists.txt
 		&& make -j
 	mkdir -p $(BIN_DIR)
 	cp $(BUILD_DIR)/$(BIN_NAME) $(BIN)
+	cp $(BUILD_DIR)/$(ELF_NAME) $(ELF)
 	@echo "------------------------------"
 	@grep "todo" -r src/ ../../lib/
 	@echo "------------------------------"
-	@echo "UF2 File:"
-	@echo $(BIN)
+	@echo -n "UF2 File: "
 	@du -h $(BIN)
+	@echo -n "ELF File: "
+	@du -h $(ELF)
+
+$(ELF): $(BIN)
 
 $(IMAGES_HPP): $(IMAGES_CPP)
 	@echo -n ""
@@ -102,20 +108,23 @@ $(FONT_SRC_DIR)/%.cpp: $(FONT_BMP_DIR)/%.png $(FONT_CPP_GEN_CMD)
 		--cpp_namespace $(APP_NAMESPACE)::fonts \
 		$(shell cat $(patsubst %.png,%.args.txt,$<))
 
-ifneq ("$(wildcard install.mk)", "")
-include install.mk
-else
-include install.sample.wsl.mk
+ifneq ("$(wildcard debug.mk)", "")
+include debug.mk
+else ifneq ("$(shell which cmd.exe)", "")
+include debug/wsl/debug.sample.mk
 endif
 
-debug: $(BIN)
-	gdb-multiarch -ex "target remote localhost:3333" $(BIN)
+debug-run: $(ELF)
+	gdb-multiarch \
+		-ex "target remote localhost:3333" \
+		-x debug/launch.gdb \
+		-q $(ELF)
 
-launch-openocd: $(BIN)
+launch-openocd:
 	cd $(OPENOCD_REPO_PATH) && \
 	sudo src/openocd \
 		-f tcl/interface/cmsis-dap.cfg \
-		-c 'adapter speed 1000' \
+		-c 'adapter speed 10000' \
 		-f tcl/target/rp2350.cfg \
 		-s tcl
 

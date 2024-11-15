@@ -2,7 +2,8 @@
 
 #include <stdint.h>
 
-#define SHPC_STATIC_INLINE inline __attribute__((always_inline))
+#define SHPC_INLINE inline __attribute__((always_inline))
+#define SHPC_STATIC_INLINE static SHPC_INLINE
 
 #define SHPC_ABS(x) ((x) >= 0 ? (x) : -(x))
 #define SHPC_MIN(a, b) ((a) < (b) ? (a) : (b))

@@ -12,6 +12,9 @@
 #define SHPC_CEIL_DIV(a, b) (((a) + (b) - 1) / (b))
 #define SHPC_ROUND_DIV(a, b) (((a) + ((b) / 2)) / (b))
 
+#define SHPC_CYCLIC_INCR(x, period) (((x) + 1 < (period)) ? ((x) + 1) : 0)
+#define SHPC_CYCLIC_DECR(x, period) (((x) - 1 >= 0) ? ((x) - 1) : (period) - 1)
+
 namespace shapoco {
 
 static SHPC_INLINE int clog10(uint32_t x) {

@@ -57,11 +57,12 @@ static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int
 static void render_date_time(uint64_t t_ms, ssd1306::Screen &screen, const receiver_status_t &sts);
 
 void ui_init(void) {
-    uint64_t t = to_us_since_boot(get_absolute_time()) / 1000;
+    uint64_t nowMs = to_us_since_boot(get_absolute_time()) / 1000;
     spiLcd.init();
     i2cLcd.resetI2cBus();
     i2cLcd.init();
-    buffView.init(t);
+    pulseView.init(nowMs);
+    buffView.init(nowMs);
 }
 
 void ui_loop(void) {
@@ -69,35 +70,35 @@ void ui_loop(void) {
     LazyTimer<uint32_t, 20> render_timer;
 
     {
-        uint64_t t_ms = to_us_since_boot(get_absolute_time()) / 1000;
-        render_timer.start(t_ms);
+        uint64_t nowMs = to_us_since_boot(get_absolute_time()) / 1000;
+        render_timer.start(nowMs);
     }
 
     sts = glb_receiver_status.load();
 
     while (true) {
-        uint64_t t_ms = to_us_since_boot(get_absolute_time()) / 1000;
+        uint64_t nowMs = to_us_since_boot(get_absolute_time()) / 1000;
 
-        if (waveform_update_timer.is_expired(t_ms)) {
+        if (waveform_update_timer.is_expired(nowMs)) {
             sts = glb_receiver_status.load();
             //rader.update(t_ms, sts);
-            pulseView.update(t_ms, sts);
+            pulseView.update(nowMs, sts);
         }
 
-        if (render_timer.is_expired(t_ms)) {
+        if (render_timer.is_expired(nowMs)) {
 
             g.clear();
 
-            render_gain_meter(t_ms, g, 0, 0);
-            render_quarity_meter(t_ms, g, 0, 18);
-            render_scope(t_ms, g, 0, 18 * 2, sts);
+            render_gain_meter(nowMs, g, 0, 0);
+            render_quarity_meter(nowMs, g, 0, 18);
+            render_scope(nowMs, g, 0, 18 * 2, sts);
 
-            buffView.render(t_ms, g, LCD_W - buffView.WIDTH, 0, sts);
+            buffView.render(nowMs, g, LCD_W - buffView.WIDTH, 0, sts);
 
             //rader.render(t_ms, 40, 0, g, sts);
-            pulseView.render(g, 38, 0);
+            pulseView.render(nowMs, g, 38, 0);
 
-            render_date_time(t_ms, g, sts);
+            render_date_time(nowMs, g, sts);
 
             spiLcd.commit(g);
             i2cLcd.commit(g);

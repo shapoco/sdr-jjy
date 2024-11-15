@@ -36,7 +36,7 @@ static constexpr T gcd(const T a, const T b) { return (b == 0) ? a : gcd(b, a % 
 template<typename T>
 static constexpr T lcm(const T a, const T b) { return a / gcd(a, b) * b; }
 
-static int32_t phase_add(int32_t x, int32_t delta) {
+static int32_t phaseAdd(int32_t x, int32_t delta) {
     int32_t ret = x + delta;
     if (ret < 0) {
         do { ret += PHASE_PERIOD; } while (ret < 0);
@@ -47,7 +47,7 @@ static int32_t phase_add(int32_t x, int32_t delta) {
     return ret;
 }
 
-static int32_t phase_diff(int32_t a, int32_t b) {
+static int32_t phaseDiff(int32_t a, int32_t b) {
     int32_t diff = a - b;
     if (diff < -PHASE_PERIOD / 2) {
         do { diff += PHASE_PERIOD; } while (diff < -PHASE_PERIOD / 2);
@@ -58,14 +58,14 @@ static int32_t phase_diff(int32_t a, int32_t b) {
     return diff;
 }
 
-static void phase_follow(int32_t *x, int32_t goal, int32_t ratio) {
-    int32_t diff = phase_diff(goal, *x);
+static void phaseFollow(int32_t *x, int32_t goal, int32_t ratio) {
+    int32_t diff = phaseDiff(goal, *x);
     if (diff == 0) return;
     int32_t step = diff * ratio / ONE;
     if (step == 0) {
         step = diff >= 0 ? 1 : -1;
     }
-    *x = phase_add(*x, step);
+    *x = phaseAdd(*x, step);
 }
 
 // 平方根を速く求める

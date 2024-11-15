@@ -53,15 +53,15 @@ public:
 
     void render(uint32_t t_now_ms, int rx0, int ry0, ssd1306::Screen &lcd, const receiver_status_t &sts) {
         int32_t delay_phase = (sts.rf.anti_chat_delay_ms + sts.rf.det_delay_ms) * jjy::PHASE_PERIOD / 1000; // 検波器の遅延
-        int32_t goal_phase_offset = jjy::phase_add(sts.sync.phase_offset, -delay_phase);
-        jjy::phase_follow(&disp_phase_offset, goal_phase_offset, jjy::ONE / 16);
+        int32_t goal_phase_offset = jjy::phaseAdd(sts.sync.phase_offset, -delay_phase);
+        jjy::phaseFollow(&disp_phase_offset, goal_phase_offset, jjy::ONE / 16);
 
         int cx = rx0 + RADIUS;
         int cy = ry0 + 6 + RADIUS;
         int cxf = cx * fxp12::ONE;
         int cyf = cy * fxp12::ONE;
 
-        lcd.draw_string(fonts::font5, rx0 + 4, ry0, "PHASE");
+        lcd.drawString(fonts::font5, rx0 + 4, ry0, "PHASE");
 
         // 波形描画
         int last_x, last_y;
@@ -69,7 +69,7 @@ public:
             int p = (last_phase + 1 + i) % WAVEFORM_PERIOD;
             int32_t r = WAVEFORM_BASE * fxp12::ONE + waveform[p] * WAVEFORM_RANGE;
             int32_t a = p * jjy::PHASE_PERIOD / WAVEFORM_PERIOD;
-            a = jjy::phase_add(a, -disp_phase_offset);
+            a = jjy::phaseAdd(a, -disp_phase_offset);
             a = a * fxp12::PHASE_PERIOD / jjy::PHASE_PERIOD - fxp12::PHASE_PERIOD / 4;
             int x = cxf + fxp12::fast_cos(a) * r / fxp12::ONE;
             int y = cyf + fxp12::fast_sin(a) * r / fxp12::ONE;
@@ -84,7 +84,7 @@ public:
         // カーソル描画
         {
             int32_t a = last_phase * jjy::PHASE_PERIOD / WAVEFORM_PERIOD;
-            a = jjy::phase_add(a, -disp_phase_offset) * fxp12::PHASE_PERIOD / jjy::PHASE_PERIOD - fxp12::PHASE_PERIOD / 4;
+            a = jjy::phaseAdd(a, -disp_phase_offset) * fxp12::PHASE_PERIOD / jjy::PHASE_PERIOD - fxp12::PHASE_PERIOD / 4;
             int32_t x = fxp12::fast_cos(a) * RADIUS;
             int32_t y = fxp12::fast_sin(a) * RADIUS;
             lcd.draw_line_f(cxf + x / 2, cyf + y / 2, cxf + x, cyf + y, pen_t::WHITE);

@@ -36,26 +36,35 @@ static FXP_INLINE int32_t follow(int32_t val, int32_t goal, int32_t ratio) {
     return val + step;
 }
 
-static FXP_INLINE int32_t phase_norm(int32_t x, int32_t offset = 0) {
-    return (x + offset) & (PHASE_PERIOD - 1);
+static FXP_INLINE int32_t phaseNorm(int32_t x, int32_t period = PHASE_PERIOD) {
+    if (x < 0) {
+        do { x += period; } while (x < 0);
+    }
+    else if (x >= period) {
+        do { x -= period; } while (x >= period);
+    }
+    return x;
 }
 
-static FXP_INLINE int32_t phase_add(int32_t x, int32_t delta) {
-    return phase_norm(x + delta);
+static FXP_INLINE int32_t phaseAdd(int32_t a, int32_t b, int32_t period = PHASE_PERIOD) {
+    return phaseNorm(a + b, period);
 }
 
-static FXP_INLINE int32_t phase_diff(int32_t a, int32_t b) {
-    return phase_norm(a - b, -PHASE_PERIOD / 2);
+static FXP_INLINE int32_t phaseDiff(int32_t a, int32_t b, int32_t period = PHASE_PERIOD) {
+    return phaseNorm(a - b + (period / 2), period) - (period / 2);
 }
 
-static FXP_INLINE void phase_follow(int32_t *x, int32_t goal, int32_t ratio) {
-    int32_t diff = phase_diff(goal, *x);
-    if (diff == 0) return;
+static FXP_INLINE int32_t phaseFollow(int32_t x, int32_t goal, int32_t ratio, int32_t period = PHASE_PERIOD, int32_t maxSpeed = -1) {
+    int32_t diff = phaseDiff(goal, x, period);
+    if (diff == 0) return x;
     int32_t step = diff * ratio / ONE;
     if (step == 0) {
         step = diff >= 0 ? 1 : -1;
     }
-    *x = phase_add(*x, step);
+    else if (maxSpeed > 0) {
+        step = FXP_CLIP(-maxSpeed, maxSpeed, step);
+    }
+    return phaseAdd(x, step, period);
 }
 
 }

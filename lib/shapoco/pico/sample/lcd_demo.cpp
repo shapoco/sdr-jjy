@@ -20,12 +20,12 @@ void lcd_demo_render(JjySpiLcd &lcd, uint32_t t_now_ms) {
     const int32_t yfxp = 8;
     const int32_t yint = 36;
 
-    lcd.draw_string(bmpfont::font5, xline + 4, 0, "LINE");
-    lcd.draw_string(bmpfont::font5, xelip, 0, "ELLIPSE");
+    lcd.drawString(bmpfont::font5, xline + 4, 0, "LINE");
+    lcd.drawString(bmpfont::font5, xelip, 0, "ELLIPSE");
 
-    lcd.draw_string(bmpfont::font5, 10, yfxp + 8, "FIXED");
-    lcd.draw_string(bmpfont::font5, 10, yfxp + 14, "POINT");
-    lcd.draw_string(bmpfont::font5, 15, yint + 11, "INT");
+    lcd.drawString(bmpfont::font5, 10, yfxp + 8, "FIXED");
+    lcd.drawString(bmpfont::font5, 10, yfxp + 14, "POINT");
+    lcd.drawString(bmpfont::font5, 15, yint + 11, "INT");
 
     {
         uint32_t t = t_now_ms * 4;

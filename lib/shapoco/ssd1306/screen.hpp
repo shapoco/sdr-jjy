@@ -21,13 +21,15 @@ public:
     const int sizeBytes = width * numPages;
 
     uint8_t * const data;
+    Rect clipRect;
 
     Screen(int w, int h) :
         width(w),
         height(h),
         numPages(SHPC_CEIL_DIV(h, PAGE_HEIGHT)),
         sizeBytes(w * numPages),
-        data(new uint8_t[sizeBytes]) { }
+        data(new uint8_t[sizeBytes]),
+        clipRect(0, 0, w, h) { }
 
     ~Screen() {
         delete[] data;
@@ -45,8 +47,23 @@ public:
         return &data[page * width];
     }
 
+    Rect getBounds() const { return Rect(0, 0, width, height); }
+
+    void setClipRect(Rect bounds) {
+        bounds.intersectSelf(getBounds());
+        clipRect = bounds;
+    }
+
+    void setClipRect(int x, int y, int w, int h) {
+        setClipRect(Rect(x, y, w, h));
+    }
+
+    void clearClipRect() {
+        setClipRect(getBounds());
+    }
+
     void set_pixel(int x, int y, pen_t c = pen_t::WHITE) {
-        if (x < 0 || width <= x || y < 0 || height <= y) return;
+        if (!clipRect.contains(x, y)) return;
         uint8_t mask = 1 << (y % PAGE_HEIGHT);
         int iseg = get_seg_index(x, y);
         switch (c) {
@@ -55,12 +72,12 @@ public:
         }
     }
 
-    void fill_rect(int x, int y, int w, int h, pen_t pen = pen_t::WHITE) {
-        fill_rect(Rect(x, y, w, h), pen);
+    void fillRect(int x, int y, int w, int h, pen_t pen = pen_t::WHITE) {
+        fillRect(Rect(x, y, w, h), pen);
     }
 
-    void fill_rect(Rect rect, pen_t c = pen_t::WHITE) {
-        rect = clip_rect(rect, width, height);
+    void fillRect(Rect rect, pen_t c = pen_t::WHITE) {
+        rect.intersectSelf(clipRect);
         if (rect.w <= 0 || rect.h <= 0) return;
         int x = rect.x;
         int y = rect.y;
@@ -103,10 +120,10 @@ public:
     }
 
     void draw_rect(int x, int y, int w, int h, pen_t pen = pen_t::WHITE) {
-        fill_rect(x, y, w + 1, 1);
-        fill_rect(x, y + 1, 1, h - 1);
-        fill_rect(x + w, y + 1, 1, h - 1);
-        fill_rect(x, y + h, w + 1, 1);
+        fillRect(x, y, w + 1, 1);
+        fillRect(x, y + 1, 1, h - 1);
+        fillRect(x + w, y + 1, 1, h - 1);
+        fillRect(x, y + h, w + 1, 1);
     }
 
     void draw_line(int x0, int y0, int x1, int y1, pen_t pen = pen_t::WHITE) {
@@ -190,16 +207,16 @@ public:
         draw_bitmap(x0, y0, bitmap + 4, 0, 0, w, h, stride);
     }
 
-    int draw_string(const TinyFont &font, int dx0, int dy0, const char* s) {
+    int drawString(const TinyFont &font, int dx0, int dy0, const char* s) {
         int n = strlen(s);
         const char *c = s;
         for (int i = 0; i < n; i++) {
-            dx0 += draw_char(font, dx0, dy0, *(c++)) + font.spacing;
+            dx0 += drawChar(font, dx0, dy0, *(c++)) + font.spacing;
         }
         return dx0;
     }
 
-    int draw_char(const TinyFont &font, int dx0, int dy0, char c) {
+    int drawChar(const TinyFont &font, int dx0, int dy0, char c) {
         if (!font.contains_char(c)) return 0;
         const TinyFontGlyph &ci = font.get_char_info(c);
         if (!ci.isBlank()) {

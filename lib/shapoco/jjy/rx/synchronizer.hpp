@@ -170,7 +170,7 @@ public:
     }
 
     bool detect_bit(uint8_t in, int32_t phase, jjybit_t *out) {
-        int32_t bit_phase = phase_add(phase, -status.phase_offset);
+        int32_t bit_phase = phaseAdd(phase, -status.phase_offset);
         int slot =
             (bit_phase < PHASE_PERIOD * 20 / 100) ? 0 :
             (bit_phase < PHASE_PERIOD * 35 / 100) ? 1 :
@@ -235,9 +235,9 @@ public:
         for (int i = 0; i < NUM_PHASE_CANDS; i++) {
             phase_cand_t &cand = status.phase_cands[i];
             if (!cand.valid) continue;
-            int32_t diff = phase_diff(phase, cand.phase);
+            int32_t diff = phaseDiff(phase, cand.phase);
             if (JJY_ABS(diff) < NEAR_THRESH) {
-                phase_follow(&cand.phase, phase, ONE / (2 + cand.score * 8 / SCORE_MAX));
+                phaseFollow(&cand.phase, phase, ONE / (2 + cand.score * 8 / SCORE_MAX));
                 cand.score = JJY_MIN(SCORE_MAX, cand.score + score_add);
                 found = true;
                 break;
@@ -254,7 +254,7 @@ public:
                 for (int ib = ia + 1; ib < NUM_PHASE_CANDS; ib++) {
                     phase_cand_t &cand_b = status.phase_cands[ib];
                     if (!cand_b.valid) continue;
-                    int32_t diff = phase_diff(cand_b.phase, cand_a.phase);
+                    int32_t diff = phaseDiff(cand_b.phase, cand_a.phase);
                     if (JJY_ABS(diff) >= NEAR_THRESH) continue;;
                     if (JJY_ABS(diff) < JJY_ABS(nearest_diff)) {
                         nearest_ia = ia;
@@ -266,7 +266,7 @@ public:
             if (nearest_ia >= 0 && nearest_ib >= 0) {
                 phase_cand_t &cand_a = status.phase_cands[nearest_ia];
                 phase_cand_t &cand_b = status.phase_cands[nearest_ib];
-                cand_a.phase = phase_add(cand_a.phase, nearest_diff * cand_b.score / (cand_a.score + cand_b.score));
+                cand_a.phase = phaseAdd(cand_a.phase, nearest_diff * cand_b.score / (cand_a.score + cand_b.score));
                 cand_a.score = JJY_MIN(SCORE_MAX, cand_a.score + cand_b.score);
                 cand_b.valid = false;
                 cand_b.score = 0;

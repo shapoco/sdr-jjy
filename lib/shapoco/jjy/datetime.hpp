@@ -52,8 +52,8 @@ struct JjyDateTime {
     uint16_t year;
     uint8_t month;
     uint8_t day;
-    uint8_t hours;
-    uint8_t minutes;
+    uint8_t hour;
+    uint8_t minute;
     uint8_t second;
     JjyDayOfWeek day_of_week;
     bool leap_second_at_end_of_month;
@@ -72,16 +72,16 @@ struct JjyDateTime {
         if (bits[59] != jjybit_t::MARKER) rslt.flags |= ParseResut::BAD_POSITION_MARKER;
 
         err = false;
-        minutes =
+        minute =
             readInt(bits, 1, 3, 0, 5, &err) * 10 + 
             readInt(bits, 4, 5, 0, 9, &err);
         if (err) rslt.flags |= ParseResut::BAD_MINUTE;
 
         err = false;
-        hours = 
+        hour = 
             readInt(bits, 10, 4, 0, 2, &err) * 10 + 
             readInt(bits, 14, 5, 0, 9, &err);
-        err |= (hours < 0 || 23 < hours);
+        err |= (hour < 0 || 23 < hour);
         if (err) rslt.flags |= ParseResut::BAD_HOUR;
 
         err = false;
@@ -161,8 +161,8 @@ struct JjyDateTime {
 
     void addSecond(int s) {
         s += second; second = s % 60; s /= 60;
-        s += minutes; minutes = s % 60; s /= 60;
-        s += hours; hours = s % 24; s /= 24;
+        s += minute; minute = s % 60; s /= 60;
+        s += hour; hour = s % 24; s /= 24;
         
         s += (day - DAY_OFFSET);
         while (true) {

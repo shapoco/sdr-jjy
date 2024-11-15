@@ -17,12 +17,12 @@ void init_tables(void) {
 
 int32_t fast_sin(int32_t a) {
     init_tables();
-    return sin_table[phase_norm(a)];
+    return sin_table[phaseNorm(a)];
 }
 
 int32_t fast_cos(int32_t a) {
     init_tables();
-    return sin_table[phase_norm(a + PHASE_PERIOD / 4)];
+    return sin_table[phaseNorm(a + PHASE_PERIOD / 4)];
 }
 
 int32_t log2(int32_t x) {

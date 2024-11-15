@@ -1,5 +1,7 @@
 #pragma once
 
+#include "shapoco/math_utils.hpp"
+
 namespace shapoco::graphics {
 
 class Rect {
@@ -11,6 +13,19 @@ public:
     int b() const { return y + h; }
     int cx() const { return (x + w / 2); }
     int cy() const { return (y + h / 2); }
+    int contains(int dx, int dy) const {
+        return
+            x <= dx && dx < (x + w) && 
+            y <= dy && dy < (y + h);
+    }
+    void intersectSelf(Rect other) {
+        int r = SHPC_MIN(x + w, other.x + other.w);
+        int b = SHPC_MIN(y + h, other.y + other.h);
+        x = SHPC_MAX(x, other.x);
+        y = SHPC_MAX(y, other.y);
+        w = r - x;
+        h = b - y;
+    }
 };
 
 Rect clip_rect(const Rect rect, int w, int h);

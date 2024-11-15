@@ -1,3 +1,3 @@
 #pragma once
 
-#define SHPC_INELINE inline __attribute__((always_inline))
+#define SHPC_INLINE inline __attribute__((always_inline))

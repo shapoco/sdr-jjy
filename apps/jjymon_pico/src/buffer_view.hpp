@@ -1,5 +1,4 @@
-#ifndef BIT_LOG_TABLE_HPP
-#define BIT_LOG_TABLE_HPP
+#pragma once
 
 #include <stdio.h>
 #include <string.h>
@@ -13,6 +12,7 @@
 #include "ui.hpp"
 #include "images.hpp"
 #include "fonts.hpp"
+#include "rotary_counter.hpp"
 
 namespace shapoco::jjymon {
 
@@ -21,20 +21,25 @@ using pen_t = shapoco::ssd1306::pen_t;
 
 class BufferView {
 public:
-    static constexpr int WIDTH = 50;
-    static constexpr int HEIGHT = 40;
-
-    static constexpr int TITLE_H = 6;
-    static constexpr int NUM_COLS = 11;
-    static constexpr int NUM_ROWS = 7;
+    static constexpr int TITLE_HEIGHT = 6;
     static constexpr int CELL_W = 4;
     static constexpr int CELL_H = 5;
+    static constexpr int NUM_COLS = 11;
+
+    static constexpr int WIDTH = CELL_W * (NUM_COLS- 1) + 6;
+    static constexpr int HEIGHT = 44;
+
+    static constexpr int NUM_ROWS = SHPC_CEIL_DIV(HEIGHT - TITLE_HEIGHT, CELL_H);
+
+    static constexpr int ANIMATION_DURATION_MS = 200;
+
+    RotaryCounter indexNumber;
 
     struct cell_t {
         bool valid;
         jjy::jjybit_t value;
 
-        void clear(uint64_t t_now_ms) {
+        void clear(uint64_t t_ms) {
             valid = false;
             value = jjy::jjybit_t::ERROR;
         }
@@ -42,97 +47,121 @@ public:
 
     struct Row {
         cell_t cells[NUM_COLS];
-        int goal_x = 0, goal_y = 0;
-        int disp_x = 0, disp_y = 0;
-        bool has_separator;
+        bool hasSeparator;
+        int goalX = 0, goalY = 0;
+        int offsetX = 0, offsetY = 0;
+        uint64_t tAnimationEndMs;
 
         void clear(uint64_t t_ms, int irow) {
             for (int i = 0; i < NUM_COLS; i++) {
                 cells[i].clear(t_ms);
             }
-            goal_x = disp_x = 0;
-            goal_y = disp_y = irow * CELL_H;
-            has_separator = false;
+            moveTo(t_ms, 0, irow * CELL_H, false);
+            hasSeparator = false;
         }
 
-        void animate(uint64_t t_ms) {
-            if (disp_x < goal_x) disp_x++;
-            else if (disp_x > goal_x) disp_x--;
-            if (disp_y < goal_y) disp_y++;
-            else if (disp_y > goal_y) disp_y--;
+        void moveTo(uint64_t t_ms, int newX, int newY, bool animation) {
+            if (animation) {
+                int currX, currY;
+                getCurrentPos(t_ms, &currX, &currY);
+                goalX = newX;
+                goalY = newY;
+                offsetX = currX - newX;
+                offsetY = currY - newY;
+                tAnimationEndMs = t_ms + ANIMATION_DURATION_MS;
+            }
+            else {
+                goalX = newX;
+                goalY = newY;
+                offsetX = 0;
+                offsetY = 0;
+                tAnimationEndMs = t_ms;
+            }
+        }
+
+        void getCurrentPos(uint64_t t_ms, int *x, int *y) const {
+            if (t_ms < tAnimationEndMs) {
+                int d = tAnimationEndMs - t_ms;
+                if (x) *x = goalX + SHPC_ROUND_DIV(offsetX * d, ANIMATION_DURATION_MS);
+                if (y) *y = goalY + SHPC_ROUND_DIV(offsetY * d, ANIMATION_DURATION_MS);
+            }
+            else {
+                if (x) *x = goalX;
+                if (y) *y = goalY;
+            }
         }
     };
     
 
 private:
     Row rows[NUM_ROWS];
-    bool last_toggle = true;
+    bool lastToggle = true;
 
 public:
-    void init(uint64_t t_now_ms) {
+    BufferView() : indexNumber(fonts::font5, 0, 59) {}
+
+    void init(uint64_t t_ms) {
         for (int irow = 0; irow < NUM_ROWS; irow++) {
-            rows[irow].clear(t_now_ms, irow);
+            rows[irow].clear(t_ms, irow);
         }
-        layout_rows(true);
+        layoutRows(t_ms, true);
     }
 
-    void render(uint64_t t_now_ms, ssd1306::Screen &lcd, int x0, int y0, const receiver_status_t &sts) {
-        char s[16];
+    void render(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0, const receiver_status_t &sts) {
+        indexNumber.update(t_ms);
 
-        if (sts.dec.toggle != last_toggle) {
-            last_toggle = sts.dec.toggle;
-            update_table(t_now_ms, sts);
+        if (sts.dec.toggle != lastToggle) {
+            lastToggle = sts.dec.toggle;
+            updateTable(t_ms, sts);
+        }
+        
+        g.drawString(fonts::font5, x0, y0, "BUFF");
+        if (sts.dec.synced) {
+            indexNumber.render(g, x0 + WIDTH - indexNumber.width, y0);
         }
 
-        bool blink = jjy::phase_add(sts.sync.phase_cursor, -sts.sync.phase_offset) < jjy::PHASE_PERIOD / 2;
+        bool blink = jjy::phaseAdd(sts.sync.phase_cursor, -sts.sync.phase_offset) < jjy::PHASE_PERIOD / 2;
 
+        g.setClipRect(x0, y0 + TITLE_HEIGHT, (NUM_COLS - 1) * CELL_W, HEIGHT - TITLE_HEIGHT);
         for (int irow = NUM_ROWS - 1; irow >= 0; irow--) {
             Row &row = rows[irow];
-            row.animate(t_now_ms);
-            int cell_x = x0 + row.disp_x + (NUM_COLS - 1) * CELL_W;
-            int row_y = y0 + row.disp_y;
+            int rowX, rowY;
+            row.getCurrentPos(t_ms, &rowX, &rowY);
+            rowX += x0;
+            rowY += y0;
+            int cellX = rowX + (NUM_COLS - 1) * CELL_W;
             for (int icol = 0; icol < NUM_COLS; icol++) {
-                cell_x -= CELL_W;
+                cellX -= CELL_W;
                 const cell_t &cell = row.cells[icol];
                 if (!cell.valid) {
-                    lcd.draw_char(fonts::font4, cell_x, row_y, '.');
+                    g.drawChar(fonts::font4, cellX, rowY, '.');
                 }
                 else if (cell.value == jjy::jjybit_t::ZERO) {
-                    lcd.draw_char(fonts::font4, cell_x, row_y, '0');
+                    g.drawChar(fonts::font4, cellX, rowY, '0');
                 }
                 else if (cell.value == jjy::jjybit_t::ONE) {
-                    lcd.draw_char(fonts::font4, cell_x, row_y, '1');
+                    g.drawChar(fonts::font4, cellX, rowY, '1');
                 }
                 else if (cell.value == jjy::jjybit_t::MARKER) {
-                    lcd.draw_char(fonts::font4, cell_x, row_y, 'M');
+                    g.drawChar(fonts::font4, cellX, rowY, 'M');
                 }
                 else {
-                    lcd.draw_char(fonts::font4, cell_x, row_y, blink ? 'X' : 'x');
+                    g.drawChar(fonts::font4, cellX, rowY, blink ? 'X' : 'x');
                 }
             }
 
-            if (row.has_separator) {
-                lcd.fill_rect(x0, row_y + CELL_H, (NUM_COLS - 1) * CELL_W - 1, 1);
+            if (row.hasSeparator) {
+                g.fillRect(x0, rowY + CELL_H, (NUM_COLS - 1) * CELL_W - 1, 1);
             }
-            
-            lcd.fill_rect(x0 - CELL_W * 2, row_y,  CELL_W * 2, CELL_H, pen_t::BLACK);
-            lcd.fill_rect(x0 + CELL_W * (NUM_COLS - 1), row_y, CELL_W * 2, CELL_H, pen_t::BLACK);
         }
-
-        lcd.fill_rect(x0 - CELL_W, y0, WIDTH + CELL_W, TITLE_H, pen_t::BLACK);
-
-        lcd.draw_string(fonts::font5, x0, y0, "BUFF");
-        if (sts.dec.synced) {
-            sprintf(s, "%d", sts.dec.last_bit_index);
-            lcd.draw_string(fonts::font5, x0 + 30, y0, s);
-        }
+        g.clearClipRect();
 
 #if 0
         {
             int y = y0 + HEIGHT + 2;
 
             sprintf(s, "synced=%d", sts.dec.synced ? 1 : 0);
-            lcd.draw_string(bmpfont::font5, x0, y, s);
+            lcd.drawString(bmpfont::font5, x0, y, s);
             y += 6;
 
             char c =
@@ -141,55 +170,57 @@ public:
                 sts.dec.last_bit_value == jjy::jjybit_t::MARKER ? 'M' :
                 sts.dec.last_bit_value == jjy::jjybit_t::ERROR ? 'E' : '?';
             sprintf(s, "last=%d,%c", sts.dec.last_bit_index, c);
-            lcd.draw_string(bmpfont::font5, x0, y, s);
+            lcd.drawString(bmpfont::font5, x0, y, s);
             y += 6;
         }
 #endif
     }
 
-    void update_table(uint64_t t_now_ms, const receiver_status_t &sts) {
+    void updateTable(uint64_t t_ms, const receiver_status_t &sts) {
         bool feed = 
             (sts.dec.last_action == jjy::rx::Decoder::action_t::SYNC_MARKER) ||
             (sts.dec.last_action == jjy::rx::Decoder::action_t::TICK_CONTINUE && sts.dec.last_bit_index % 10 == 0);
         if (feed) {
             bool add_sep = sts.dec.synced && sts.dec.last_bit_index == 0;
-            feed_line(t_now_ms, add_sep);
+            feedLine(t_ms, add_sep);
         }
-        shift_in(t_now_ms, sts.dec.last_bit_value);
+        shiftIn(t_ms, sts.dec.last_bit_value);
+        indexNumber.setNumber(sts.dec.last_bit_index);
     }
 
-    void shift_in(uint64_t t_now_ms, jjy::jjybit_t in) {
+    void shiftIn(uint64_t t_ms, jjy::jjybit_t in) {
         Row &row = rows[NUM_ROWS - 1];
         for (int icol = NUM_COLS - 1; icol >= 1; icol--) {
             row.cells[icol] = row.cells[icol - 1];
         }
         cell_t &cell = row.cells[0];
-        cell.clear(t_now_ms);
+        cell.clear(t_ms);
         cell.value = in;
         cell.valid = true;
-        row.disp_x = CELL_W - 1;
+
+        int y;
+        row.getCurrentPos(t_ms, nullptr, &y);
+        row.moveTo(t_ms, CELL_W - 1, y, false);
+        row.moveTo(t_ms, 0, y, true);
     }
 
-    void feed_line(uint64_t t_ms, bool add_separator) {
+    void feedLine(uint64_t t_ms, bool add_separator) {
         for (int irow = 0; irow < NUM_ROWS - 1; irow++) {
             rows[irow] = rows[irow + 1];
         }
-        rows[NUM_ROWS - 2].has_separator = add_separator;
+        rows[NUM_ROWS - 2].hasSeparator = add_separator;
         rows[NUM_ROWS - 1].clear(t_ms, NUM_ROWS - 1);
-        layout_rows(false);
+        layoutRows(t_ms, false);
     }
 
-    void layout_rows(bool reset) {
+    void layoutRows(uint64_t t_ms, bool reset) {
         int y = HEIGHT - CELL_H + 1;
         for (int irow = NUM_ROWS - 1; irow >= 0; irow--) {
             Row &row = rows[irow];
-            if (irow < NUM_ROWS - 1 && row.has_separator) {
+            if (irow < NUM_ROWS - 1 && row.hasSeparator) {
                 y -= 2;
             }
-            row.goal_y = y;
-            if (reset || irow == NUM_ROWS - 1) {
-                row.disp_y = y;
-            }
+            row.moveTo(t_ms, 0, y, !reset && irow != NUM_ROWS - 1);
             y -= CELL_H;
         }
     }
@@ -197,5 +228,3 @@ public:
 };
 
 }
-
-#endif

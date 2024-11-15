@@ -94,11 +94,11 @@ public:
             if (diff < 0) diff += periodFxp;
             if (diff != 0) {
                 int32_t step = FXP_CLIP(1, followStepMax, diff * followRatio / fxp12::ONE);
-                currValueFxp = fxp12::phaseAdd(currValueFxp, step, periodFxp);
+                currValueFxp = shapoco::cyclicAdd(currValueFxp, step, periodFxp);
             }
         }
         else {
-            currValueFxp = fxp12::phaseFollow(currValueFxp, goalValueFxp, followRatio, periodFxp, followStepMax);
+            currValueFxp = shapoco::cyclicFollow(currValueFxp, goalValueFxp, periodFxp, followRatio, fxp12::PREC, followStepMax);
         }
         int currValue = currValueFxp / fxp12::ONE;
         int nextValue = currValue + 1 < period ? currValue + 1 : 0;

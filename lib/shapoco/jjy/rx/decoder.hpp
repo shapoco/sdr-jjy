@@ -133,7 +133,7 @@ public:
             rxBuff[sts.last_bit_index] = in;
             if (new_action == action_t::TICK_WRAP) {
                 sts.last_parse_result = sts.last_date_time.parse(rxBuff, 2000);
-                sts.last_date_time.addSecond(60);
+                sts.last_date_time.addSecondsSelf(60);
             }
         }
 

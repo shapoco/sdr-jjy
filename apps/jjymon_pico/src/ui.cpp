@@ -110,22 +110,6 @@ void ui_loop(void) {
 }
 
 static void render_gain_meter(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0) {
-    constexpr bool SMOOTH_SCALE = true;
-
-    //if (SMOOTH_SCALE) {
-    //    gain_meter_scale = fxp12::follow(gain_meter_scale, sts.rf.agc_gain, fxp12::ONE / 4);
-    //}
-    //else {
-    //    if (sts.rf.agc_gain > gain_meter_scale * 3 / 2) {
-    //        gain_meter_scale *= 2;
-    //    }
-    //    else if (sts.rf.agc_gain < gain_meter_scale * 3 / 4) {
-    //        gain_meter_scale /= 2;
-    //    }
-    //}
-
-
-
     //int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc_Deprecated::GOAL_AMPLITUDE * 5 / 4);
     //int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::ONE * 5 / 4);
     int32_t goal = SHPC_ROUND_DIV(fxp12::log2(sts.rf.adc_amplitude_raw * fxp12::ONE), 12);
@@ -140,22 +124,6 @@ static void render_gain_meter(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0)
     ampNumber.setNumber(peakAmp);
     ampNumber.update(t_ms);
     ampNumber.render(g, x0 + 32 - ampNumber.width, y0);
-
-
-    //const int scale_text_x = x0 + 17;
-    //char s[8];
-    //if (SMOOTH_SCALE) {
-    //    sprintf(s, "x%3.1f", (float)gain_meter_scale / jjy::ONE);
-    //}
-    //else {
-    //    if (gain_meter_scale >= jjy::ONE) {
-    //        sprintf(s, "x%1d", (int)(gain_meter_scale / jjy::ONE));
-    //    }
-    //    else {
-    //        sprintf(s, "/%1d", (int)(jjy::ONE / gain_meter_scale));
-    //    }
-    //}
-    //screen.draw_string(fonts::font5, scale_text_x, y0, s);
 
     render_meter(t_ms, g, 0, y0 + 6, gain_meter_curr);
 }

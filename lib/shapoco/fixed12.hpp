@@ -1,9 +1,9 @@
 #pragma once
 
 #include <stdint.h>
+#include "shapoco/math_utils.hpp"
 
-#define FXP_INLINE inline __attribute__((always_inline))
-
+// todo: SHPC_... に置き換え
 #define FXP_ABS(x) ((x) >= 0 ? (x) : -(x))
 #define FXP_MIN(a, b) ((a) < (b) ? (a) : (b))
 #define FXP_MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -25,10 +25,10 @@ int32_t fast_sin(int32_t a);
 int32_t fast_cos(int32_t a);
 int32_t log2(int32_t x);
 
-static FXP_INLINE int to_int(int32_t x) { return x >> PREC; }
-static FXP_INLINE int round_to_int(int32_t x) { return to_int(x + (ONE / 2)); }
+SHPC_STATIC_INLINE int to_int(int32_t x) { return x >> PREC; }
+SHPC_STATIC_INLINE int round_to_int(int32_t x) { return to_int(x + (ONE / 2)); }
 
-static FXP_INLINE int32_t follow(int32_t val, int32_t goal, int32_t ratio) {
+SHPC_STATIC_INLINE int32_t follow(int32_t val, int32_t goal, int32_t ratio) {
     int32_t diff = goal - val;
     if (diff == 0) return val;
     int32_t step = diff * ratio / ONE;
@@ -36,26 +36,20 @@ static FXP_INLINE int32_t follow(int32_t val, int32_t goal, int32_t ratio) {
     return val + step;
 }
 
-static FXP_INLINE int32_t phaseNorm(int32_t x, int32_t period = PHASE_PERIOD) {
-    if (x < 0) {
-        do { x += period; } while (x < 0);
-    }
-    else if (x >= period) {
-        do { x -= period; } while (x >= period);
-    }
-    return x;
+SHPC_STATIC_INLINE int32_t phaseNorm(int32_t x) {
+    return cyclicNorm(x, PHASE_PERIOD);
 }
 
-static FXP_INLINE int32_t phaseAdd(int32_t a, int32_t b, int32_t period = PHASE_PERIOD) {
-    return phaseNorm(a + b, period);
+SHPC_STATIC_INLINE int32_t phaseAdd(int32_t a, int32_t b) {
+    return phaseNorm(a + b);
 }
 
-static FXP_INLINE int32_t phaseDiff(int32_t a, int32_t b, int32_t period = PHASE_PERIOD) {
-    return phaseNorm(a - b + (period / 2), period) - (period / 2);
+SHPC_STATIC_INLINE int32_t phaseDiff(int32_t a, int32_t b) {
+    return phaseNorm(a - b + (PHASE_PERIOD / 2)) - (PHASE_PERIOD / 2);
 }
 
-static FXP_INLINE int32_t phaseFollow(int32_t x, int32_t goal, int32_t ratio, int32_t period = PHASE_PERIOD, int32_t maxSpeed = -1) {
-    int32_t diff = phaseDiff(goal, x, period);
+SHPC_STATIC_INLINE int32_t phaseFollow_tmp(int32_t x, int32_t goal, int32_t ratio, int32_t maxSpeed = -1) {
+    int32_t diff = phaseDiff(goal, x);
     if (diff == 0) return x;
     int32_t step = diff * ratio / ONE;
     if (step == 0) {
@@ -64,7 +58,7 @@ static FXP_INLINE int32_t phaseFollow(int32_t x, int32_t goal, int32_t ratio, in
     else if (maxSpeed > 0) {
         step = FXP_CLIP(-maxSpeed, maxSpeed, step);
     }
-    return phaseAdd(x, step, period);
+    return phaseAdd(x, step);
 }
 
 }

@@ -41,20 +41,18 @@ static ssd1306::Screen g(LCD_W, LCD_H);
 static RotaryCounter ampNumber(fonts::font5, 0, 100);
 static RotaryCounter qtyNumber(fonts::font5, 0, 100);
 
-//static Rader rader;
 static PulseView pulseView;
 static BufferView buffView;
 static ClockView clockView;
 
-//static int32_t gain_meter_scale = fxp12::ONE;
 static int32_t gain_meter_curr = 0;
 static int32_t qty_meter_curr = 0;
 
-static void render_gain_meter(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0);
-static void render_quarity_meter(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0);
-static void render_scope(uint64_t t_ms, ssd1306::Screen &screen, int x0, int y0, const receiver_status_t &sts);
-static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0, int32_t val);
-static void render_date_time(uint64_t t_ms, ssd1306::Screen &screen, const receiver_status_t &sts);
+static void render_gain_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0);
+static void render_quarity_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0);
+static void render_scope(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, const receiver_status_t &sts);
+static void render_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, int32_t val);
+//static void render_date_time(uint64_t nowMs, ssd1306::Screen &g, const receiver_status_t &sts);
 
 void ui_init(void) {
     uint64_t nowMs = to_us_since_boot(get_absolute_time()) / 1000;
@@ -98,7 +96,10 @@ void ui_loop(void) {
             //rader.render(t_ms, 40, 0, g, sts);
             pulseView.render(nowMs, g, 38, 0);
 
-            render_date_time(nowMs, g, sts);
+            //render_date_time(nowMs, g, sts);
+            
+            clockView.update(nowMs, sts);
+            clockView.render(g, 0, LCD_H - ClockView::HEIGHT);
 
             spiLcd.commit(g);
             i2cLcd.commit(g);
@@ -109,7 +110,7 @@ void ui_loop(void) {
     }
 }
 
-static void render_gain_meter(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0) {
+static void render_gain_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0) {
     //int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::rx::Agc_Deprecated::GOAL_AMPLITUDE * 5 / 4);
     //int32_t goal = sts.rf.adc_amplitude_raw * gain_meter_scale / (jjy::ONE * 5 / 4);
     int32_t goal = SHPC_ROUND_DIV(fxp12::log2(sts.rf.adc_amplitude_raw * fxp12::ONE), 12);
@@ -122,13 +123,13 @@ static void render_gain_meter(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0)
     peakAmp = SHPC_CLIP(0, 100, SHPC_ROUND_DIV(peakAmp * 100, fxp12::ONE));
 
     ampNumber.setNumber(peakAmp);
-    ampNumber.update(t_ms);
+    ampNumber.update(nowMs);
     ampNumber.render(g, x0 + 32 - ampNumber.width, y0);
 
-    render_meter(t_ms, g, 0, y0 + 6, gain_meter_curr);
+    render_meter(nowMs, g, 0, y0 + 6, gain_meter_curr);
 }
 
-static void render_quarity_meter(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0) {
+static void render_quarity_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0) {
     qty_meter_curr = fxp12::follow(qty_meter_curr, sts.sync.bit_det_quality, fxp12::ONE / 8);
 
     //int32_t qty = qty_meter_curr * sts.rf.signal_quarity / jjy::ONE;
@@ -138,13 +139,13 @@ static void render_quarity_meter(uint64_t t_ms, ssd1306::Screen &g, int x0, int 
     g.drawString(fonts::font5, x0, y0, "QTY");
     
     qtyNumber.setNumber(qty * 100 / jjy::ONE);
-    qtyNumber.update(t_ms);
+    qtyNumber.update(nowMs);
     qtyNumber.render(g, x0 + 32 - qtyNumber.width, y0);
     
-    render_meter(t_ms, g, 0, y0 + 6, qty);
+    render_meter(nowMs, g, 0, y0 + 6, qty);
 }
 
-static void render_scope(uint64_t t_ms, ssd1306::Screen &screen, int x0, int y0, const receiver_status_t &sts) {
+static void render_scope(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, const receiver_status_t &sts) {
     int w = jjy::rx::DifferentialDetector::SCOPE_SIZE;
     const uint32_t *scope = sts.scope;
     for (int x = 0; x < w; x++) {
@@ -153,7 +154,7 @@ static void render_scope(uint64_t t_ms, ssd1306::Screen &screen, int x0, int y0,
             val = (val >> 2) | (val & 3);
             val = (val >> 1) | (val & 1);
             if (val & 1) {
-                screen.set_pixel(x0 + x, y0 + y);
+                g.set_pixel(x0 + x, y0 + y);
             }
             val >>= 1;
         }
@@ -161,12 +162,12 @@ static void render_scope(uint64_t t_ms, ssd1306::Screen &screen, int x0, int y0,
     }
 }
 
-static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int y0, int32_t val) {
+static void render_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, int32_t val) {
     constexpr int32_t A_PERIOD = fxp12::PHASE_PERIOD * 45 / 360;
     constexpr int RADIUS_MAX = 40;
     constexpr int RADIUS_MIN = RADIUS_MAX - 10;
 
-    screen.draw_bitmap(x0, y0, bmp_meter_frame);
+    g.draw_bitmap(x0, y0, bmp_meter_frame);
     
     val = FXP_CLIP(0, fxp12::ONE, val);
     int32_t a = (fxp12::PHASE_PERIOD * 3 / 4 - A_PERIOD / 2) + (A_PERIOD * val) / fxp12::ONE;
@@ -178,77 +179,72 @@ static void render_meter(uint32_t t_now_ms, ssd1306::Screen &screen, int x0, int
     int32_t ly0 = cy + sin * (RADIUS_MAX - 1);
     int32_t lx1 = cx + cos * RADIUS_MIN;
     int32_t ly1 = cy + sin * RADIUS_MIN;
-    screen.draw_line_f(lx0 - fxp12::ONE / 2, ly0, lx1 - fxp12::ONE / 2, ly1);
-    screen.draw_line_f(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
+    g.draw_line_f(lx0 - fxp12::ONE / 2, ly0, lx1 - fxp12::ONE / 2, ly1);
+    g.draw_line_f(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
 }
 
-static void render_date_time(uint64_t t_ms, ssd1306::Screen &lcd, const receiver_status_t &sts) { 
-    char s[32];
-    const int sts_y = LCD_H - 12 - 6;
-    const int guage_x = LCD_W / 2;
-    const int guage_w = LCD_W - guage_x;
-    //bool empty = true;
-    if (!sts.sync.phase_locked) {
-        lcd.drawString(fonts::font5, 0, sts_y, "PHASE SYNC...");
-        const int guage_val = (LCD_W / 2) * sts.sync.phase_lock_progress / jjy::ONE;
-        lcd.draw_rect(guage_x, sts_y, guage_w - 1, 4);
-        lcd.fillRect(guage_x, sts_y + 1, guage_val, 3);
-    }
-    else if (!sts.dec.synced) {
-        lcd.drawString(fonts::font5, 0, sts_y, "FRAME SYNC...");
-        int pos = t_ms % 1024;
-        if (pos > 512) pos = 1024 - pos;
-        const int guage_pos = (LCD_W * 3 / 8) * pos / 512;
-        lcd.draw_rect(guage_x, sts_y, guage_w - 1, 4);
-        lcd.fillRect(guage_x + guage_pos, sts_y + 1, (LCD_W / 8), 3);
-    }
-    else if (sts.dec.last_parse_result.flags == jjy::ParseResut::EMPTY) {
-        lcd.drawString(fonts::font5, 0, sts_y, "RECEIVING...");
-        const int guage_val = (LCD_W / 2) * sts.dec.last_bit_index / 60;
-        lcd.draw_rect(guage_x, sts_y, guage_w - 1, 4);
-        lcd.fillRect(guage_x, sts_y + 1, guage_val, 3);
-    }
-    else if (sts.dec.last_parse_result.success()) {
-        //lcd.draw_string(bmpfont::font5, 0, sts_y, "NO ERROR");
-        //goal_date_time = sts.dec.last_date_time;
-        //goal_date_time.second = sts.dec.last_bit_index;
-        //empty = false;
-    }
-    else {
-        sprintf(s, "ERROR CODE = 0x%x", (int)(sts.dec.last_parse_result.flags));
-        lcd.drawString(fonts::font5, 0, sts_y, s);
-    }
- 
-    //static int tmp_t = 0;
-    //if ((tmp_t++) % 3 == 0) {
-    //    disp_date_time.year = (disp_date_time.year / 100 < goal_date_time.year / 100) ? disp_date_time.year + 100 : goal_date_time.year;
-    //    disp_date_time.year = (disp_date_time.year < goal_date_time.year) ? disp_date_time.year + 1 : goal_date_time.year;
-    //    disp_date_time.month = (disp_date_time.month < goal_date_time.month) ? disp_date_time.month + 1 : goal_date_time.month;
-    //    disp_date_time.day = (disp_date_time.day < goal_date_time.day) ? disp_date_time.day + 1 : goal_date_time.day;
-    //    disp_date_time.hour = (disp_date_time.hour < goal_date_time.hour) ? disp_date_time.hour + 1 : goal_date_time.hour;
-    //    disp_date_time.minute = (disp_date_time.minute < goal_date_time.minute) ? disp_date_time.minute + 1 : goal_date_time.minute;
-    //    disp_date_time.second = (disp_date_time.second < goal_date_time.second) ? disp_date_time.second + 1 : goal_date_time.second;
-    //}
-
-    //if (empty) {
-    //    lcd.drawString(fonts::font12, 0, LCD_H - 12, "----/--/-- --:--:--");
-    //}
-    //else {
-    //    sprintf(s, "%04d/%02d/%02d %02d:%02d:%02d",
-    //        disp_date_time.year,
-    //        disp_date_time.month - jjy::MONTH_OFFSET + 1,
-    //        disp_date_time.day - jjy::DAY_OFFSET + 1,
-    //        disp_date_time.hour,
-    //        disp_date_time.minute,
-    //        sts.dec.last_bit_index);
-    //    lcd.drawString(fonts::font12, 0, LCD_H - 12, s);
-    //}
-
-    jjy::JjyDateTime dt = sts.dec.last_date_time;
-    dt.second = (sts.dec.last_bit_index + 1) % 60;
-    clockView.setDateTime(t_ms, dt);
-    clockView.update(t_ms);
-    clockView.render(g, 0, LCD_H - fonts::font12.height);
-}
+//static void render_date_time(uint64_t nowMs, ssd1306::Screen &g, const receiver_status_t &sts) { 
+//    char s[32];
+//    const int stsY = LCD_H - 12 - 6;
+//    const int guageX = LCD_W / 2;
+//    const int guageW = LCD_W - guageX;
+//    //bool empty = true;
+//    if (!sts.sync.phase_locked) {
+//        g.drawString(fonts::font5, 0, stsY, "PHASE SYNC...");
+//        const int guageVal = (LCD_W / 2) * sts.sync.phase_lock_progress / jjy::ONE;
+//        g.draw_rect(guageX, stsY, guageW - 1, 4);
+//        g.fillRect(guageX, stsY + 1, guageVal, 3);
+//    }
+//    else if (!sts.dec.synced) {
+//        g.drawString(fonts::font5, 0, stsY, "FRAME SYNC...");
+//        int pos = nowMs % 1024;
+//        if (pos > 512) pos = 1024 - pos;
+//        const int guagePos = (LCD_W * 3 / 8) * pos / 512;
+//        g.draw_rect(guageX, stsY, guageW - 1, 4);
+//        g.fillRect(guageX + guagePos, stsY + 1, (LCD_W / 8), 3);
+//    }
+//    else if (sts.dec.last_parse_result.flags == jjy::ParseResut::EMPTY) {
+//        g.drawString(fonts::font5, 0, stsY, "RECEIVING...");
+//        const int guageVal = (LCD_W / 2) * sts.dec.last_bit_index / 60;
+//        g.draw_rect(guageX, stsY, guageW - 1, 4);
+//        g.fillRect(guageX, stsY + 1, guageVal, 3);
+//    }
+//    else if (sts.dec.last_parse_result.success()) {
+//        //lcd.draw_string(bmpfont::font5, 0, sts_y, "NO ERROR");
+//        //goal_date_time = sts.dec.last_date_time;
+//        //goal_date_time.second = sts.dec.last_bit_index;
+//        //empty = false;
+//    }
+//    else {
+//        sprintf(s, "ERROR CODE = 0x%x", (int)(sts.dec.last_parse_result.flags));
+//        g.drawString(fonts::font5, 0, stsY, s);
+//    }
+// 
+//    //static int tmp_t = 0;
+//    //if ((tmp_t++) % 3 == 0) {
+//    //    disp_date_time.year = (disp_date_time.year / 100 < goal_date_time.year / 100) ? disp_date_time.year + 100 : goal_date_time.year;
+//    //    disp_date_time.year = (disp_date_time.year < goal_date_time.year) ? disp_date_time.year + 1 : goal_date_time.year;
+//    //    disp_date_time.month = (disp_date_time.month < goal_date_time.month) ? disp_date_time.month + 1 : goal_date_time.month;
+//    //    disp_date_time.day = (disp_date_time.day < goal_date_time.day) ? disp_date_time.day + 1 : goal_date_time.day;
+//    //    disp_date_time.hour = (disp_date_time.hour < goal_date_time.hour) ? disp_date_time.hour + 1 : goal_date_time.hour;
+//    //    disp_date_time.minute = (disp_date_time.minute < goal_date_time.minute) ? disp_date_time.minute + 1 : goal_date_time.minute;
+//    //    disp_date_time.second = (disp_date_time.second < goal_date_time.second) ? disp_date_time.second + 1 : goal_date_time.second;
+//    //}
+//
+//    //if (empty) {
+//    //    lcd.drawString(fonts::font12, 0, LCD_H - 12, "----/--/-- --:--:--");
+//    //}
+//    //else {
+//    //    sprintf(s, "%04d/%02d/%02d %02d:%02d:%02d",
+//    //        disp_date_time.year,
+//    //        disp_date_time.month - jjy::MONTH_OFFSET + 1,
+//    //        disp_date_time.day - jjy::DAY_OFFSET + 1,
+//    //        disp_date_time.hour,
+//    //        disp_date_time.minute,
+//    //        sts.dec.last_bit_index);
+//    //    lcd.drawString(fonts::font12, 0, LCD_H - 12, s);
+//    //}
+//
+//}
 
 }

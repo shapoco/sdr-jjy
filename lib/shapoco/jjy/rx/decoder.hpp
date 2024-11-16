@@ -33,10 +33,12 @@ public:
         action_t last_action;
         int last_bit_index;
         jjybit_t last_bit_value;
-        JjyDateTime last_date_time;
+        uint64_t lastRecvTimestampMs;
+        JjyDateTime lastRecvDateTimeRaw;
+        JjyDateTime lastRecvDateTimeEffective;
         ParseResut last_parse_result;
 
-        void init(uint32_t t_now_ms) {
+        void init(uint64_t nowMs) {
             last_action = action_t::ABORT;
             synced = false;
             last_bit_index = 0;
@@ -52,13 +54,13 @@ private:
 
 public:
 
-    void init(uint32_t t_now_ms) {
-        sts.init(t_now_ms);
+    void init(uint64_t nowMs) {
+        sts.init(nowMs);
         memset(rxBuff, (int)jjybit_t::ERROR, sizeof(jjybit_t) * 60);
         bit_index = INITIAL_BIT_INDEX;
     }
 
-    action_t process(uint32_t t_now_ms, jjybit_t in) {
+    action_t process(uint64_t nowMs, jjybit_t in) {
         action_t new_action = action_t::ABORT;
         
         sts.last_bit_index = bit_index;
@@ -132,8 +134,10 @@ public:
         if (accept && 0 <= sts.last_bit_index && sts.last_bit_index < 60) {
             rxBuff[sts.last_bit_index] = in;
             if (new_action == action_t::TICK_WRAP) {
-                sts.last_parse_result = sts.last_date_time.parse(rxBuff, 2000);
-                sts.last_date_time.addSecondsSelf(60);
+                sts.last_parse_result = sts.lastRecvDateTimeRaw.parse(rxBuff, 2000);
+                sts.lastRecvDateTimeEffective = sts.lastRecvDateTimeRaw;
+                sts.lastRecvDateTimeEffective.addMillisSelf(60 * 1000);
+                sts.lastRecvTimestampMs = nowMs;
             }
         }
 

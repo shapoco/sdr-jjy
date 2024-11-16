@@ -79,7 +79,7 @@ public:
             scopeWaveform[scopeCursor] = SHPC_CLIP(0, 255, val);
         }
 
-        int32_t phase = fxp12::phaseNorm(sts.sync.phase_cursor - sts.sync.phase_offset);
+        int32_t phase = fxp12::phaseNorm(sts.sync.phase_cursor - sts.sync.phase_offset + fxp12::PHASE_PERIOD / 10);
         if (phase < jjy::PHASE_PERIOD / 2 && jjy::PHASE_PERIOD / 2 <= lastPhase) {
             LogEntry &entry = log[logCursor];
             cursor_t rp = newScopeCursor + 1;

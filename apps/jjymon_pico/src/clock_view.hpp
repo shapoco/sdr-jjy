@@ -21,6 +21,16 @@ using pen_t = shapoco::ssd1306::pen_t;
 
 class ClockView {
 public:
+    static constexpr int HEIGHT = 18;
+    static constexpr char* DAY_OF_WEEK_STR[] = {
+        "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
+    };
+
+    bool decStsToggle = false;
+    bool clockInitialized = false;
+    jjy::JjyDateTime dateTime;
+    jjy::JjyClock clock;
+
     const TinyFont &font;
     RotaryCounter year_h;
     RotaryCounter year_l;
@@ -56,7 +66,7 @@ public:
         minute.forwardOnly = true;
         second.forwardOnly = false;
 
-        int32_t followRatio = fxp12::ONE / 8;
+        int32_t followRatio = fxp12::ONE / 4;
         year_h.followRatio = followRatio;
         year_l.followRatio = followRatio;
         month.followRatio = followRatio;
@@ -76,39 +86,69 @@ public:
     }
 
     void setDateTime(uint64_t t_ms, jjy::JjyDateTime dt) {
-        year_h.setNumber(dt.year / 100);
-        year_l.setNumber(dt.year % 100);
-        month.setNumber(dt.month);
-        day.setNumber(dt.day);
-        hour.setNumber(dt.hour);
-        minute.setNumber(dt.minute);
-        second.setNumber(dt.second);
     }
 
-    void update(uint64_t t_ms) {
-        year_h.update(t_ms);
-        year_l.update(t_ms);
-        month.update(t_ms);
-        day.update(t_ms);
-        hour.update(t_ms);
-        minute.update(t_ms);
-        second.update(t_ms);
+    void update(uint64_t nowMs, const jjymon::receiver_status_t &sts) {
+        year_h.update(nowMs);
+        year_l.update(nowMs);
+        month.update(nowMs);
+        day.update(nowMs);
+        hour.update(nowMs);
+        minute.update(nowMs);
+        second.update(nowMs);
+
+        if (sts.dec.toggle != decStsToggle) {
+            decStsToggle = sts.dec.toggle;
+            jjy::ParseResut parseResult = sts.dec.last_parse_result;
+            if (parseResult.success()) {
+                clock.set(sts.dec.lastRecvTimestampMs, sts.dec.lastRecvDateTimeEffective);
+                clockInitialized = true;
+            }
+        }
+
+        if (clockInitialized) {
+            dateTime = clock.get(nowMs);
+            year_h.setNumber(dateTime.year / 100);
+            year_l.setNumber(dateTime.year % 100);
+            month.setNumber(dateTime.month);
+            day.setNumber(dateTime.day);
+            hour.setNumber(dateTime.hour);
+            minute.setNumber(dateTime.minute);
+            second.setNumber(dateTime.second);
+        }
     }
 
     void render(ssd1306::Screen &g, int x0, int y0) {
-        int x = x0;
-        x += renderCounter(g, year_h, x, y0);
-        x += renderCounter(g, year_l, x, y0);
-        x += g.drawChar(font, x, y0, '/') + font.spacing;
-        x += renderCounter(g, month, x, y0);
-        x += g.drawChar(font, x, y0, '/') + font.spacing;
-        x += renderCounter(g, day, x, y0);
-        x += g.drawChar(font, x, y0, ' ') + font.spacing;
-        x += renderCounter(g, hour, x, y0);
-        x += g.drawChar(font, x, y0, ':') + font.spacing;
-        x += renderCounter(g, minute, x, y0);
-        x += g.drawChar(font, x, y0, ':') + font.spacing;
-        x += renderCounter(g, second, x, y0);
+        {
+            int x = x0, y = y0;
+            if (clockInitialized) {
+                g.drawString(fonts::font5, x, y, DAY_OF_WEEK_STR[(int)dateTime.day_of_week]);
+            }
+            else {
+                g.drawString(fonts::font5, x, y, "---");
+            }
+        }
+
+        {
+            int x = x0, y = y0 + HEIGHT - fonts::font12.height;
+            if (clockInitialized) {
+                x += renderCounter(g, year_h, x, y);
+                x += renderCounter(g, year_l, x, y);
+                x += g.drawChar(font, x, y, '/') + font.spacing;
+                x += renderCounter(g, month, x, y);
+                x += g.drawChar(font, x, y, '/') + font.spacing;
+                x += renderCounter(g, day, x, y);
+                x += g.drawChar(font, x, y, ' ') + font.spacing;
+                x += renderCounter(g, hour, x, y);
+                x += g.drawChar(font, x, y, ':') + font.spacing;
+                x += renderCounter(g, minute, x, y);
+                x += g.drawChar(font, x, y, ':') + font.spacing;
+                x += renderCounter(g, second, x, y);
+            }
+            else {
+                g.drawString(fonts::font12, x, y, "----/--/-- --:--:--");
+            }
+        }
     }
 
     int renderCounter(ssd1306::Screen &g, RotaryCounter &cntr, int x0, int y0) {

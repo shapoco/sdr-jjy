@@ -96,7 +96,7 @@ struct JjyDateTime {
     uint8_t hour;
     uint8_t minute;
     uint8_t second;
-    uint16_t millis;
+    uint16_t milliSecond;
     JjyDayOfWeek day_of_week;
     bool leap_second_at_end_of_month;
     JjyLeapSecondType leap_second_type;
@@ -168,7 +168,7 @@ struct JjyDateTime {
         if (err) rslt.flags |= ParseResut::BAD_RESERVED_BITS;
 
         second = 0;
-        millis = 0;
+        milliSecond = 0;
 
         return rslt;
     }
@@ -207,7 +207,7 @@ struct JjyDateTime {
         int64_t carry = ms;
 
         if (carry == 0) return;
-        carry += millis; millis = shapoco::cyclicNorm(carry, 1000); carry /= 1000;
+        carry += milliSecond; milliSecond = shapoco::cyclicNorm(carry, 1000); carry /= 1000;
 
         if (carry == 0) return;
         carry += second; second = shapoco::cyclicNorm(carry, 60); carry /= 60;

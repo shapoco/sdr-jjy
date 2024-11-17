@@ -18,6 +18,12 @@ public:
             x <= dx && dx < (x + w) && 
             y <= dy && dy < (y + h);
     }
+
+    void offsetSelf(int dx, int dy) {
+        x += dx;
+        y += dy;
+    }
+
     void intersectSelf(Rect other) {
         int r = SHPC_MIN(x + w, other.x + other.w);
         int b = SHPC_MIN(y + h, other.y + other.h);
@@ -25,6 +31,13 @@ public:
         y = SHPC_MAX(y, other.y);
         w = r - x;
         h = b - y;
+    }
+    
+    void inflateSelf(int xSize, int ySize) {
+        x -= xSize;
+        y -= ySize;
+        w += xSize * 2;
+        h += ySize * 2;
     }
 };
 

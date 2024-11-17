@@ -119,7 +119,7 @@ public:
         }
     }
 
-    void draw_rect(int x, int y, int w, int h, pen_t pen = pen_t::WHITE) {
+    void drawRect(int x, int y, int w, int h, pen_t pen = pen_t::WHITE) {
         fillRect(x, y, w + 1, 1);
         fillRect(x, y + 1, 1, h - 1);
         fillRect(x + w, y + 1, 1, h - 1);

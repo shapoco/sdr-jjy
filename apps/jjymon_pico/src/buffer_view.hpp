@@ -34,6 +34,7 @@ public:
     static constexpr int ANIMATION_DURATION_MS = 200;
 
     RotaryCounter indexNumber;
+    ProgressBar progBar;
 
     struct cell_t {
         bool valid;
@@ -98,7 +99,9 @@ private:
     bool lastToggle = true;
 
 public:
-    BufferView() : indexNumber(fonts::font5, 0, 59) {}
+    BufferView() : 
+        indexNumber(fonts::font5, 0, 59),
+        progBar(fonts::font5, WIDTH * 7 / 8) {}
 
     void init(uint64_t nowMs) {
         for (int irow = 0; irow < NUM_ROWS; irow++) {
@@ -114,11 +117,25 @@ public:
             lastToggle = sts.dec.toggle;
             updateTable(nowMs, sts);
         }
-        
+
         g.drawString(fonts::font5, x0, y0, "BUFF");
-        if (sts.dec.synced) {
-            indexNumber.render(g, x0 + WIDTH - indexNumber.width, y0);
+        if (!sts.sync.phaseLocked) {
+            progBar.setMessage("STBY...");
+            progBar.setVisible(nowMs, true);
+            progBar.setWaving(false);
+            progBar.setValue(nowMs, 0);
         }
+        else if (!sts.dec.synced) {
+            progBar.setMessage("SYNC...");
+            progBar.setVisible(nowMs, true);
+            progBar.setWaving(true);
+            progBar.setValue(nowMs, 0);
+        } 
+        else {
+            indexNumber.render(g, x0 + WIDTH - indexNumber.width, y0);
+            progBar.setVisible(nowMs, false);
+        }
+        progBar.update(nowMs);
 
         bool blink = jjy::phaseAdd(sts.sync.phase_cursor, -sts.sync.phase_offset) < jjy::PHASE_PERIOD / 2;
 
@@ -155,7 +172,9 @@ public:
             }
         }
         g.clearClipRect();
-
+        
+        // 位相ロック状態
+        progBar.render(nowMs, g, x0 + (WIDTH - progBar.width) / 2, y0 + (HEIGHT - progBar.height) / 2);
 #if 0
         {
             int y = y0 + HEIGHT + 2;
@@ -169,7 +188,7 @@ public:
                 sts.dec.last_bit_value == jjy::jjybit_t::ONE ? '1' :
                 sts.dec.last_bit_value == jjy::jjybit_t::MARKER ? 'M' :
                 sts.dec.last_bit_value == jjy::jjybit_t::ERROR ? 'E' : '?';
-            sprintf(s, "last=%d,%c", sts.dec.last_bit_index, c);
+            sprintf(s, "last=%d,%c", sts.dec.lastBitIndex, c);
             lcd.drawString(bmpfont::font5, x0, y, s);
             y += 6;
         }
@@ -179,13 +198,13 @@ public:
     void updateTable(uint64_t nowMs, const receiver_status_t &sts) {
         bool feed = 
             (sts.dec.last_action == jjy::rx::Decoder::action_t::SYNC_MARKER) ||
-            (sts.dec.last_action == jjy::rx::Decoder::action_t::TICK_CONTINUE && sts.dec.last_bit_index % 10 == 0);
+            (sts.dec.last_action == jjy::rx::Decoder::action_t::TICK_CONTINUE && sts.dec.lastBitIndex % 10 == 0);
         if (feed) {
-            bool add_sep = sts.dec.synced && sts.dec.last_bit_index == 0;
+            bool add_sep = sts.dec.synced && sts.dec.lastBitIndex == 0;
             feedLine(nowMs, add_sep);
         }
         shiftIn(nowMs, sts.dec.last_bit_value);
-        indexNumber.setNumber(nowMs, sts.dec.last_bit_index);
+        indexNumber.setNumber(nowMs, sts.dec.lastBitIndex);
     }
 
     void shiftIn(uint64_t nowMs, jjy::jjybit_t in) {

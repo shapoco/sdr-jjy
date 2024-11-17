@@ -13,7 +13,7 @@
 #include "ui.hpp"
 #include "images.hpp"
 #include "fonts.hpp"
-#include "rotary_counter.hpp"
+#include "progress_bar.hpp"
 
 namespace shapoco::jjymon {
 
@@ -34,7 +34,6 @@ public:
 
     static constexpr int RANGE_MS = 1100;
     static constexpr int ANIMATION_DURATION_MS = 200;
-
 
     struct LogEntry {
         uint8_t waveform[RANGE_MS];
@@ -61,8 +60,10 @@ private:
 
     uint64_t tAnimationEndMs = 0;
 
+    ProgressBar progBar;
+
 public:
-    PulseView() { }
+    PulseView() : progBar(fonts::font5, WIDTH * 7 / 8) { }
 
     void init(uint64_t nowMs) {
         for (int ientry = 0; ientry < LOG_DEPTH; ientry++) {
@@ -94,6 +95,13 @@ public:
         }
         lastPhase = phase;
 
+        if (!sts.sync.phaseLocked) {
+            progBar.setMessage("SYNC...");
+        }
+        progBar.setVisible(nowMs, !sts.sync.phaseLocked);
+        progBar.setValue(nowMs, sts.sync.phaseLockProgress);
+        progBar.update(nowMs);
+
         beatDetected = sts.rf.beat_detected;
     }
 
@@ -120,6 +128,9 @@ public:
         if (beatDetected) {
             g.drawBitmap(x0 + WIDTH - bmp_icon_beat[0], y0, bmp_icon_beat);
         }
+
+        // 位相ロック状態
+        progBar.render(nowMs, g, x0 + (WIDTH - progBar.width) / 2, y0 + (HEIGHT - progBar.height) / 2);
     }
 
     void renderWaveform(ssd1306::Screen &g, int x0, int y0, int h, const uint8_t *waveform, cursor_t cursor, int peak) {

@@ -21,6 +21,7 @@ using pen_t = shapoco::ssd1306::pen_t;
 
 class ClockView {
 public:
+    static constexpr int WIDTH = 128;
     static constexpr int HEIGHT = 18;
 
     bool decStsToggle = false;
@@ -36,8 +37,9 @@ public:
     RotaryCounter hour;
     RotaryCounter minute;
     RotaryCounter second;
-
     RotaryCounter dayOfWeek;
+
+    ProgressBar progBar;
 
     ClockView() :
         font(fonts::font12),
@@ -48,7 +50,8 @@ public:
         hour(font, 0, 23),
         minute(font, 0, 59),
         second(font, 0, 59),
-        dayOfWeek(fonts::font5, 0, 6)
+        dayOfWeek(fonts::font5, 0, 6),
+        progBar(fonts::font5, 48)
     { 
         dayOfWeek.setAliases(DAY_OF_WEEK_STRING);
 
@@ -119,6 +122,17 @@ public:
             minute.setNumber(nowMs, dateTime.minute);
             second.setNumber(nowMs, dateTime.second);
             dayOfWeek.setNumber(nowMs, (int)dateTime.dayOfWeek);
+            progBar.setVisible(nowMs, false);
+        }
+        else if (!sts.sync.phaseLocked || !sts.dec.synced) {
+            progBar.setMessage("STBY...");
+            progBar.setValue(nowMs, 0);
+            progBar.setVisible(nowMs, true);
+        }
+        else {
+            progBar.setMessage("RECV...");
+            progBar.setValue(nowMs, sts.dec.lastBitIndex * fxp12::ONE / 60);
+            progBar.setVisible(nowMs, true);
         }
         
         yearH.update(nowMs);
@@ -129,9 +143,10 @@ public:
         minute.update(nowMs);
         second.update(nowMs);
         dayOfWeek.update(nowMs);
+        progBar.update(nowMs);
     }
 
-    void render(ssd1306::Screen &g, int x0, int y0) {
+    void render(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0) {
         {
             int x = x0, y = y0;
             if (clockInitialized) {
@@ -157,6 +172,8 @@ public:
             x += g.drawChar(font, x, y, ':') + font.spacing;
             x += renderCounter(g, second, x, y);
         }
+
+        progBar.render(nowMs, g, x0 + (WIDTH - progBar.width) / 2, y0 + (HEIGHT - progBar.height) / 2);
     }
 
     int renderCounter(ssd1306::Screen &g, RotaryCounter &cntr, int x0, int y0) {

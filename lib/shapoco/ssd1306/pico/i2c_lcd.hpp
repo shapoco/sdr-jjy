@@ -110,28 +110,36 @@ public:
         return (i2c_get_hw(i2c)->status & 0x1) != 0;
     }
 
-    void resetI2cBus() {
+    void i2cBusClear() {
+        gpio_init(PIN_SDA);
+        gpio_init(PIN_SCL);
+        gpio_pull_up(PIN_SDA);
+        gpio_pull_up(PIN_SCL);
         gpio_set_function(PIN_SDA, GPIO_FUNC_SIO);
-        gpio_set_dir(PIN_SDA, GPIO_IN);
-        gpio_put(PIN_SDA, 0);
-        
         gpio_set_function(PIN_SCL, GPIO_FUNC_SIO);
+        gpio_set_dir(PIN_SDA, GPIO_IN);
         gpio_set_dir(PIN_SCL, GPIO_IN);
+        gpio_put(PIN_SDA, 0);
         gpio_put(PIN_SCL, 0);
+        sleep_us(5);
 
-        sleep_us(1);
         if (!gpio_get(PIN_SDA)) {
+            // Send SCL pulses until SDA=H
             for (int i = 0; i < 9; i++) {
-                gpio_set_dir(PIN_SCL, GPIO_OUT);
-                sleep_us(10);
-                gpio_set_dir(PIN_SCL, GPIO_IN);
-                sleep_us(10);
+                gpio_set_dir(PIN_SCL, GPIO_OUT); sleep_us(5);
+                if (gpio_get(PIN_SDA)) break;
+                gpio_set_dir(PIN_SCL, GPIO_IN); sleep_us(5);
             }
+
+            // Send stop condition
+            gpio_set_dir(PIN_SDA, GPIO_OUT); sleep_us(5);
+            gpio_set_dir(PIN_SCL, GPIO_IN); sleep_us(5);
+            gpio_set_dir(PIN_SDA, GPIO_IN); sleep_us(5);
         }
 
         gpio_set_function(PIN_SDA, GPIO_FUNC_I2C);
         gpio_set_function(PIN_SCL, GPIO_FUNC_I2C);
-        sleep_us(10);
+        sleep_us(5);
     }
 
 

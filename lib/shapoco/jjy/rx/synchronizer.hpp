@@ -23,8 +23,8 @@ typedef struct {
     phase_cand_t phase_cands[NUM_PHASE_CANDS];
     int32_t phase_cursor;
     int32_t phase_offset;
-    bool phase_locked;
-    int32_t phase_lock_progress;
+    bool phaseLocked;
+    int32_t phaseLockProgress;
     int32_t bit_det_quality;
     bool out_enable;
     jjybit_t out_value;
@@ -83,8 +83,8 @@ public:
         }
         status.phase_offset = 0;
         status.phase_cursor = (t_now_ms % 1000) * PHASE_PERIOD / 1000;
-        status.phase_locked = false;
-        status.phase_lock_progress = 0;
+        status.phaseLocked = false;
+        status.phaseLockProgress = 0;
         status.bit_det_quality = 0;
     }
 
@@ -149,17 +149,17 @@ public:
         if (cand_expire_timer.is_expired(t_now_ms)) {
             // 位相候補期限切れ
             lock_wait_timer.start(t_now_ms);
-            status.phase_lock_progress = 0;
+            status.phaseLockProgress = 0;
         }
         else {
             // ビット位相ロック判定
-            status.phase_locked = lock_wait_timer.is_expired(t_now_ms);
+            status.phaseLocked = lock_wait_timer.is_expired(t_now_ms);
             int32_t elapsed_ms = lock_wait_timer.elapsed(t_now_ms);
-            if (status.phase_locked) {
-                status.phase_lock_progress = ONE;    
+            if (status.phaseLocked) {
+                status.phaseLockProgress = ONE;    
             }
             else {
-                status.phase_lock_progress = JJY_CLIP(0, ONE, elapsed_ms * ONE / LOCK_WAIT_TIME_MS);
+                status.phaseLockProgress = JJY_CLIP(0, ONE, elapsed_ms * ONE / LOCK_WAIT_TIME_MS);
             }
         }
 
@@ -222,8 +222,8 @@ public:
 
         status.bit_det_quality = qty_history_waveform.ave() * qty_history_bit_error.ave() / ONE;
 
-        *out = out_value;
-        return out_enable && status.phase_locked;
+        *out = status.phaseLocked ? out_value : jjybit_t::ERROR;
+        return out_enable;
     }
 
     void add_edge(int32_t phase) {

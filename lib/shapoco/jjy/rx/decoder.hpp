@@ -31,7 +31,7 @@ public:
         bool toggle = false;
         bool synced;
         action_t last_action;
-        int last_bit_index;
+        int lastBitIndex;
         jjybit_t last_bit_value;
         uint64_t lastRecvTimestampMs;
         JjyDateTime lastRecvDateTimeRaw;
@@ -41,7 +41,7 @@ public:
         void init(uint64_t nowMs) {
             last_action = action_t::ABORT;
             synced = false;
-            last_bit_index = 0;
+            lastBitIndex = 0;
             last_bit_value = jjybit_t::ERROR;
             last_parse_result.flags = ParseResut::EMPTY;
         }
@@ -63,7 +63,7 @@ public:
     action_t process(uint64_t nowMs, jjybit_t in) {
         action_t new_action = action_t::ABORT;
         
-        sts.last_bit_index = bit_index;
+        sts.lastBitIndex = bit_index;
 
         if (in == jjybit_t::ERROR) {
             new_action = action_t::ABORT;
@@ -131,8 +131,8 @@ public:
             break;
         }
 
-        if (accept && 0 <= sts.last_bit_index && sts.last_bit_index < 60) {
-            rxBuff[sts.last_bit_index] = in;
+        if (accept && 0 <= sts.lastBitIndex && sts.lastBitIndex < 60) {
+            rxBuff[sts.lastBitIndex] = in;
             if (new_action == action_t::TICK_WRAP) {
                 sts.last_parse_result = sts.lastRecvDateTimeRaw.parse(rxBuff, 2000);
                 sts.lastRecvDateTimeEffective = sts.lastRecvDateTimeRaw;

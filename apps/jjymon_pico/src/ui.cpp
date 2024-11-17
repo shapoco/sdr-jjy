@@ -57,7 +57,7 @@ static void render_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, int
 void ui_init(void) {
     uint64_t nowMs = to_us_since_boot(get_absolute_time()) / 1000;
     spiLcd.init();
-    i2cLcd.resetI2cBus();
+    i2cLcd.i2cBusClear();
     i2cLcd.init();
     pulseView.init(nowMs);
     buffView.init(nowMs);
@@ -99,7 +99,7 @@ void ui_loop(void) {
             //render_date_time(nowMs, g, sts);
             
             clockView.update(nowMs, sts);
-            clockView.render(g, 0, LCD_H - ClockView::HEIGHT);
+            clockView.render(nowMs, g, 0, LCD_H - ClockView::HEIGHT);
 
             spiLcd.commit(g);
             i2cLcd.commit(g);
@@ -206,14 +206,14 @@ static void render_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, int
 //    }
 //    else if (sts.dec.last_parse_result.flags == jjy::ParseResut::EMPTY) {
 //        g.drawString(fonts::font5, 0, stsY, "RECEIVING...");
-//        const int guageVal = (LCD_W / 2) * sts.dec.last_bit_index / 60;
+//        const int guageVal = (LCD_W / 2) * sts.dec.lastBitIndex / 60;
 //        g.draw_rect(guageX, stsY, guageW - 1, 4);
 //        g.fillRect(guageX, stsY + 1, guageVal, 3);
 //    }
 //    else if (sts.dec.last_parse_result.success()) {
 //        //lcd.draw_string(bmpfont::font5, 0, sts_y, "NO ERROR");
 //        //goal_date_time = sts.dec.last_date_time;
-//        //goal_date_time.second = sts.dec.last_bit_index;
+//        //goal_date_time.second = sts.dec.lastBitIndex;
 //        //empty = false;
 //    }
 //    else {
@@ -242,7 +242,7 @@ static void render_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, int
 //    //        disp_date_time.day - jjy::DAY_OFFSET + 1,
 //    //        disp_date_time.hour,
 //    //        disp_date_time.minute,
-//    //        sts.dec.last_bit_index);
+//    //        sts.dec.lastBitIndex);
 //    //    lcd.drawString(fonts::font12, 0, LCD_H - 12, s);
 //    //}
 //

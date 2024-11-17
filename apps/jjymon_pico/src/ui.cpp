@@ -122,7 +122,7 @@ static void render_gain_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0
     int32_t peakAmp = SHPC_ROUND_DIV(fxp12::log2(sts.rf.adc_amplitude_peak * fxp12::ONE), 12);
     peakAmp = SHPC_CLIP(0, 100, SHPC_ROUND_DIV(peakAmp * 100, fxp12::ONE));
 
-    ampNumber.setNumber(peakAmp);
+    ampNumber.setNumber(nowMs, peakAmp);
     ampNumber.update(nowMs);
     ampNumber.render(g, x0 + 32 - ampNumber.width, y0);
 
@@ -138,7 +138,7 @@ static void render_quarity_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int
 
     g.drawString(fonts::font5, x0, y0, "QTY");
     
-    qtyNumber.setNumber(qty * 100 / jjy::ONE);
+    qtyNumber.setNumber(nowMs, qty * 100 / jjy::ONE);
     qtyNumber.update(nowMs);
     qtyNumber.render(g, x0 + 32 - qtyNumber.width, y0);
     
@@ -167,22 +167,23 @@ static void render_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, int
     constexpr int RADIUS_MAX = 40;
     constexpr int RADIUS_MIN = RADIUS_MAX - 10;
 
-    g.draw_bitmap(x0, y0, bmp_meter_frame);
+    g.drawBitmap(x0, y0, bmp_meter_frame);
     
     val = FXP_CLIP(0, fxp12::ONE, val);
     int32_t a = (fxp12::PHASE_PERIOD * 3 / 4 - A_PERIOD / 2) + (A_PERIOD * val) / fxp12::ONE;
-    int32_t sin = fxp12::fast_sin(a);
-    int32_t cos = fxp12::fast_cos(a);
+    int32_t sin = fxp12::fastSin(a);
+    int32_t cos = fxp12::fastCos(a);
     int32_t cx = (x0 + 16) * fxp12::ONE;
     int32_t cy = (y0 + RADIUS_MAX) * fxp12::ONE + fxp12::ONE / 2;
     int32_t lx0 = cx + cos * (RADIUS_MAX - 1);
     int32_t ly0 = cy + sin * (RADIUS_MAX - 1);
     int32_t lx1 = cx + cos * RADIUS_MIN;
     int32_t ly1 = cy + sin * RADIUS_MIN;
-    g.draw_line_f(lx0 - fxp12::ONE / 2, ly0, lx1 - fxp12::ONE / 2, ly1);
-    g.draw_line_f(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
+    g.drawLineF(lx0 - fxp12::ONE / 2, ly0, lx1 - fxp12::ONE / 2, ly1);
+    g.drawLineF(lx0 + fxp12::ONE / 2, ly0, lx1 + fxp12::ONE / 2, ly1);
 }
 
+//todo: 削除
 //static void render_date_time(uint64_t nowMs, ssd1306::Screen &g, const receiver_status_t &sts) { 
 //    char s[32];
 //    const int stsY = LCD_H - 12 - 6;

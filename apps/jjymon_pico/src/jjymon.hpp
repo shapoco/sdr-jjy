@@ -53,6 +53,8 @@ typedef struct {
 
 extern shapoco::pico::atomic<receiver_status_t> glb_receiver_status;
 
+extern const char * DAY_OF_WEEK_STRING[];
+
 void main(void);
 
 }

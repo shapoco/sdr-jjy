@@ -17,21 +17,34 @@ public:
 class TinyFont {
 public:
     const int height;
-    const int code_offset;
-    const int num_chars;
+    const int codeOffset;
+    const int numChars;
     const int spacing;
     const uint8_t *bitmap;
     const TinyFontGlyph *chars;
     
-    TinyFont(int height, int code_offset, int num_chars, int spacing, const uint8_t *bitmap, const TinyFontGlyph *chars)
-        : height(height), code_offset(code_offset), num_chars(num_chars), spacing(spacing), bitmap(bitmap), chars(chars) { }
-    
-    bool contains_char(char c) const {
-        return (code_offset <= c) && (c < code_offset + num_chars) && (get_char_info(c).width > 0);
-    }
+    TinyFont(int height, int codeOffset, int numChars, int spacing, const uint8_t *bitmap, const TinyFontGlyph *chars)
+        : height(height), codeOffset(codeOffset), numChars(numChars), spacing(spacing), bitmap(bitmap), chars(chars) { }
 
-    const TinyFontGlyph &get_char_info(char c) const {
-        return chars[c - code_offset];
+    const TinyFontGlyph *getGlyph(char c) const {
+        int i = c - codeOffset;
+        if ((0 <= i) && (i < numChars)) {
+            return &chars[i];
+        }
+        else {
+            return nullptr;
+        }
+    } 
+
+    int measureStringWidth(const char *s) const {
+        const char *c = s;
+        int w = 0;
+        while (c != nullptr) {
+            const TinyFontGlyph *glyph = getGlyph(*c);
+            if (glyph) w += glyph->width + spacing;
+            c++;
+        }
+        return w - spacing;
     }
 };
 

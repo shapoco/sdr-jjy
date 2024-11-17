@@ -18,6 +18,10 @@ namespace shapoco::jjymon {
 
 shapoco::pico::atomic<receiver_status_t> glb_receiver_status;
 
+const char * DAY_OF_WEEK_STRING[] = {
+    "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
+};
+
 void main(void) {
     // クロック設定
     set_sys_clock_khz(shapoco::jjymon::SYS_CLK_FREQ / KHZ, true);
@@ -31,7 +35,7 @@ void main(void) {
 #endif
 
     // 固定小数点ライブラリの初期化
-    fxp12::init_tables();
+    fxp12::initTables();
 
     // UI初期設定
     ui_init();

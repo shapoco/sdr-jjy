@@ -36,7 +36,7 @@ public:
     }
     
     int32_t process(int32_t in) {
-        history.push(SHPC_ABS(in));
+        history.push(shapoco::abs(in));
 
         amplitude_peak = history.max();
         if (amplitude_peak > 0) {

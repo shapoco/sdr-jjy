@@ -131,28 +131,28 @@ public:
         y0 *= fxp12::ONE;
         x1 *= fxp12::ONE;
         y1 *= fxp12::ONE;
-        draw_line_f(x0, y0, x1, y1, pen);
+        drawLineF(x0, y0, x1, y1, pen);
     }
 
-    void draw_line_f(int32_t x0f, int32_t y0f, int32_t x1f, int32_t y1f, pen_t pen = pen_t::WHITE) {
+    void drawLineF(int32_t x0f, int32_t y0f, int32_t x1f, int32_t y1f, pen_t pen = pen_t::WHITE) {
         int32_t dxf = x1f - x0f;
         int32_t dyf = y1f - y0f;
         if (FXP_ABS(dxf) > FXP_ABS(dyf)) {
-            int xi = fxp12::to_int(x0f);
-            int n = FXP_ABS(fxp12::to_int(x1f) - xi);
+            int xi = fxp12::floorToInt(x0f);
+            int n = FXP_ABS(fxp12::floorToInt(x1f) - xi);
             int xi_step = dxf >= 0 ? 1 : -1;
             for (int i = 0; i < n; i++) {
-                int yi = fxp12::to_int(y0f + dyf * i / n);
+                int yi = fxp12::floorToInt(y0f + dyf * i / n);
                 set_pixel(xi, yi, pen);
                 xi += xi_step;
             }
         }
         else {
-            int yi = fxp12::to_int(y0f);
-            int n = FXP_ABS(fxp12::to_int(y1f) - yi);
+            int yi = fxp12::floorToInt(y0f);
+            int n = FXP_ABS(fxp12::floorToInt(y1f) - yi);
             int yi_step = dyf >= 0 ? 1 : -1;
             for (int i = 0; i < n; i++) {
-                int xi = fxp12::to_int(x0f + dxf * i / n);
+                int xi = fxp12::floorToInt(x0f + dxf * i / n);
                 set_pixel(xi, yi, pen);
                 yi += yi_step;
             }
@@ -200,11 +200,11 @@ public:
         }
     }
 
-    void draw_bitmap(int x0, int y0, const uint8_t *bitmap) {
+    void drawBitmap(int x0, int y0, const uint8_t *bitmap) {
         int w = ((int)bitmap[1] << 8) | ((int)bitmap[0]);
         int h = ((int)bitmap[3] << 8) | ((int)bitmap[2]);
         int stride = (w + 7) / 8;
-        draw_bitmap(x0, y0, bitmap + 4, 0, 0, w, h, stride);
+        drawBitmap(x0, y0, bitmap + 4, 0, 0, w, h, stride);
     }
 
     int drawString(const TinyFont &font, int dx0, int dy0, const char* s) {
@@ -217,15 +217,15 @@ public:
     }
 
     int drawChar(const TinyFont &font, int dx0, int dy0, char c) {
-        if (!font.contains_char(c)) return 0;
-        const TinyFontGlyph &ci = font.get_char_info(c);
-        if (!ci.isBlank()) {
-            draw_bitmap(dx0, dy0, font.bitmap + ci.offset, 0, 0, ci.width, font.height, (ci.width + 7) / 8);
+        const TinyFontGlyph *glyph = font.getGlyph(c);
+        if (!glyph) return 0;
+        if (!glyph->isBlank()) {
+            drawBitmap(dx0, dy0, font.bitmap + glyph->offset, 0, 0, glyph->width, font.height, (glyph->width + 7) / 8);
         }
-        return ci.width;
+        return glyph->width;
     }
 
-    void draw_bitmap(int dx0, int dy0, const uint8_t *src, int sx0, int sy0, int w, int h, int sstride) {
+    void drawBitmap(int dx0, int dy0, const uint8_t *src, int sx0, int sy0, int w, int h, int sstride) {
         const uint8_t *line_ptr = src + sy0 * sstride + sx0 / 8;
         for (int y = 0; y < h; y++) {
             int dy = dy0 + y;

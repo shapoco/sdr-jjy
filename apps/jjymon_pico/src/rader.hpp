@@ -71,11 +71,11 @@ public:
             int32_t a = p * jjy::PHASE_PERIOD / WAVEFORM_PERIOD;
             a = jjy::phaseAdd(a, -disp_phase_offset);
             a = a * fxp12::PHASE_PERIOD / jjy::PHASE_PERIOD - fxp12::PHASE_PERIOD / 4;
-            int x = cxf + fxp12::fast_cos(a) * r / fxp12::ONE;
-            int y = cyf + fxp12::fast_sin(a) * r / fxp12::ONE;
+            int x = cxf + fxp12::fastCos(a) * r / fxp12::ONE;
+            int y = cyf + fxp12::fastSin(a) * r / fxp12::ONE;
             if (i > 0) {
-                lcd.draw_line_f(last_x, last_y, x, y, pen_t::WHITE);
-                lcd.set_pixel(fxp12::to_int(x), fxp12::to_int(y), pen_t::WHITE);
+                lcd.drawLineF(last_x, last_y, x, y, pen_t::WHITE);
+                lcd.set_pixel(fxp12::floorToInt(x), fxp12::floorToInt(y), pen_t::WHITE);
             }
             last_x = x;
             last_y = y;
@@ -85,9 +85,9 @@ public:
         {
             int32_t a = last_phase * jjy::PHASE_PERIOD / WAVEFORM_PERIOD;
             a = jjy::phaseAdd(a, -disp_phase_offset) * fxp12::PHASE_PERIOD / jjy::PHASE_PERIOD - fxp12::PHASE_PERIOD / 4;
-            int32_t x = fxp12::fast_cos(a) * RADIUS;
-            int32_t y = fxp12::fast_sin(a) * RADIUS;
-            lcd.draw_line_f(cxf + x / 2, cyf + y / 2, cxf + x, cyf + y, pen_t::WHITE);
+            int32_t x = fxp12::fastCos(a) * RADIUS;
+            int32_t y = fxp12::fastSin(a) * RADIUS;
+            lcd.drawLineF(cxf + x / 2, cyf + y / 2, cxf + x, cyf + y, pen_t::WHITE);
         }
 
         // 信号レベル描画
@@ -103,7 +103,7 @@ public:
 
         // うなり検出状態
         if (sts.rf.beat_detected) {
-            lcd.draw_bitmap(rx0 - 6, HEIGHT - 7, bmp_icon_beat);
+            lcd.drawBitmap(rx0 - 6, HEIGHT - 7, bmp_icon_beat);
         }
     }
 

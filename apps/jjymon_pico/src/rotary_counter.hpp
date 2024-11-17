@@ -16,24 +16,37 @@ using pen_t = ::shapoco::ssd1306::pen_t;
 class RotaryCounter {
 public:
     static constexpr int32_t POS_PERIOD = 10 * fxp12::ONE;
+    static constexpr int ANIMATION_DURATION_MS = 250;
+
+    enum BlankState {
+        NORMAL,
+        BLANK,
+        BLANK_EXITING,
+    };
 
     struct Digit {
+        int number;
+        bool zeroVisible;
+        bool blank;
+    };
+
+    struct Place {
         int x;
-        int currNumber;
-        int nextNumber;
-        bool currVisible;
-        bool nextVisible;
-        int shift;
+        Digit currDig;
+        Digit nextDig;
+        int yShift;
     };
 
     const TinyFont &font;
     const int minValue;
     const int maxValue;
-    const int numDigits;
-    const int numVisibleDigits;
+    const int numPlaces;
+    const int numVisiblePlaces;
     const int dotPos;
-    const int width;
+    int width;
     const int height;
+    const int yStride;
+    Place * const places;
 
     bool zeroPadding = false;
     bool forwardOnly = false;
@@ -42,48 +55,108 @@ public:
 
     int32_t goalValueFxp = 0;
     int32_t currValueFxp = 0;
+    BlankState blankState = BlankState::NORMAL;
+    uint64_t tAnimationStartMs = 0;
 
-    Digit * const digits;
+    const char **aliases = nullptr;
 
-public:
-    RotaryCounter(const TinyFont &font, int minValue, int maxValue, int numVisibleDigits = -1, int dotPos = 0) : 
+    RotaryCounter(const TinyFont &font, int minValue, int maxValue, int numVisiblePlaces = -1, int dotPos = 0) : 
         font(font), 
         minValue(minValue),
         maxValue(maxValue),
-        numDigits(shapoco::clog10(1 + SHPC_MAX(SHPC_ABS(minValue), SHPC_ABS(maxValue)))), 
-        numVisibleDigits(numVisibleDigits > 0 ? numVisibleDigits : numDigits),
+        numPlaces(shapoco::clog10(1 + SHPC_MAX(shapoco::abs(minValue), shapoco::abs(maxValue)))), 
+        numVisiblePlaces(numVisiblePlaces > 0 ? numVisiblePlaces : numPlaces),
         dotPos(dotPos),
         width(
-            this->numVisibleDigits * (font.get_char_info('0').width + font.spacing) - font.spacing +
-            ((dotPos > 0) ? (font.get_char_info('.').width + font.spacing) : 0)
+            this->numVisiblePlaces * (font.getGlyph('0')->width + font.spacing) - font.spacing +
+            ((dotPos > 0) ? (font.getGlyph('.')->width + font.spacing) : 0)
         ), 
         height(font.height),
-        digits(new Digit[numDigits])
+        yStride(font.height + 2),
+        places(new Place[numPlaces])
     { 
-        int digitWidth = font.get_char_info('0').width;
+        int digitWidth = font.getGlyph('0')->width;
         int x = width - digitWidth;
-        int max = SHPC_MAX(SHPC_ABS(minValue), SHPC_ABS(maxValue));
-        for (int idig = 0; idig < numDigits; idig++) {
-            Digit &dig = digits[idig];
-            dig.x = x;
-            dig.currNumber = 0;
-            dig.nextNumber = 1;
-            dig.currVisible = zeroPadding || (idig == 0);
-            dig.nextVisible = zeroPadding || (idig == 0);
+        int max = SHPC_MAX(shapoco::abs(minValue), shapoco::abs(maxValue));
+        for (int idig = 0; idig < numPlaces; idig++) {
+            Place &place = places[idig];
+            place.x = x;
+            place.currDig.number = 0;
+            place.nextDig.number = 1;
+            place.currDig.zeroVisible = zeroPadding || (idig == 0);
+            place.nextDig.zeroVisible = zeroPadding || (idig == 0);
             x -= digitWidth + font.spacing;
             max /= 10;
         }
     }
 
     ~RotaryCounter() {
-        delete[] digits;
+        delete[] places;
     }
 
-    void setNumber(int value) {
+    void setAliases(const char **aliases, bool adjustWidth = true) {
+        this->aliases = aliases;
+        if (adjustWidth) {
+            int dw = 0;
+            for (int i = minValue; i <= maxValue; i++) {
+                dw = SHPC_MAX(dw, font.measureStringWidth(aliases[i]));
+            }
+            width = 50; //(dw + font.spacing) * numDigits - font.spacing;
+        }
+    }
+
+    void setNumber(uint64_t nowMs, int value, bool animation = true) {
         goalValueFxp = value * fxp12::ONE;
+        if (animation) {
+            int periodFxp = fxp12::ONE * (maxValue + 1 - minValue);
+            if (blankState == BlankState::BLANK) {
+                // ブランク状態から解放
+                blankState = BlankState::BLANK_EXITING;
+                tAnimationStartMs = nowMs;
+                if (forwardOnly || 0 <= shapoco::cyclicDiff(goalValueFxp, currValueFxp, periodFxp)) {
+                    // 正転
+                    currValueFxp = fxp12::floor(currValueFxp);
+                }
+                else {
+                    // 逆転
+                    currValueFxp = fxp12::floor(shapoco::cyclicAdd(currValueFxp, -fxp12::ONE, periodFxp));
+                }
+            }
+        }
+        else {
+            currValueFxp = goalValueFxp;
+            blankState = BlankState::NORMAL;
+        }
     }
 
-    void update(uint64_t t_ms) {
+    void setBlank() {
+        currValueFxp = goalValueFxp = 0;
+        tAnimationStartMs = 0;
+        blankState = BlankState::BLANK;
+    }
+
+    void update(uint64_t nowMs) {
+        if (blankState == BlankState::NORMAL) {
+            updateForNormal(nowMs);
+        }
+        else {
+            updateForBlank(nowMs);
+        }
+
+        // ゼロサプレス
+        bool currZeroVisible = zeroPadding;
+        bool nextZeroVisible = zeroPadding;
+        for (int idig = numPlaces - 1; idig >= 0; idig--) {
+            Place &place = places[idig];
+            currZeroVisible |= (place.currDig.number != 0);
+            nextZeroVisible |= (place.nextDig.number != 0);
+            place.currDig.zeroVisible = currZeroVisible || (idig == 0);
+            place.nextDig.zeroVisible = nextZeroVisible || (idig == 0);
+        }
+    }
+
+    void updateForNormal(uint64_t nowMs) {
+        // 表示値の更新
         int period = maxValue + 1 - minValue;
         int32_t periodFxp = period * fxp12::ONE;
         int32_t minValueFxp = minValue * fxp12::ONE;
@@ -100,51 +173,77 @@ public:
         else {
             currValueFxp = shapoco::cyclicFollow(currValueFxp, goalValueFxp, periodFxp, followRatio, fxp12::PREC, followStepMax);
         }
-        int currValue = currValueFxp / fxp12::ONE;
-        int nextValue = currValue + 1 < period ? currValue + 1 : 0;
+        int currValue = fxp12::truncToInt(currValueFxp);
+        int nextValue = shapoco::cyclicAdd(currValue, 1, period);
         currValueFxp += minValueFxp;
         goalValueFxp += minValueFxp;
         currValue += minValue;
         nextValue += minValue;
 
-        currValue = SHPC_ABS(currValue);
-        nextValue = SHPC_ABS(nextValue);
-        int32_t shiftFxp = currValueFxp & (fxp12::ONE - 1);
-        const int yStride = (font.height + 2);
-        for (int idig = 0; idig < numDigits; idig++) {
-            Digit &dig = digits[idig];
-            dig.currNumber = currValue % 10;
-            dig.nextNumber = nextValue % 10;
-            dig.shift = SHPC_ROUND_DIV(shiftFxp * yStride, fxp12::ONE);
-            if (dig.currNumber != 9) shiftFxp = 0;
+        // 表示盤の数字と位置の更新
+        currValue = shapoco::abs(currValue);
+        nextValue = shapoco::abs(nextValue);
+        int32_t yShiftFxp = currValueFxp & (fxp12::ONE - 1);
+        for (int idig = 0; idig < numPlaces; idig++) {
+            Place &place = places[idig];
+            place.currDig.number = currValue % 10;
+            place.nextDig.number = nextValue % 10;
+            place.currDig.blank = false;
+            place.nextDig.blank = false;
+            place.yShift = fxp12::roundToInt(yShiftFxp * yStride);
+            if (place.currDig.number != 9) yShiftFxp = 0;
             currValue /= 10;
             nextValue /= 10;
         }
+    }
 
-        bool currVisible = zeroPadding;
-        bool nextVisible = zeroPadding;
-        for (int idig = numDigits - 1; idig >= 0; idig--) {
-            Digit &dig = digits[idig];
-            currVisible |= (dig.currNumber != 0);
-            nextVisible |= (dig.nextNumber != 0);
-            dig.currVisible = currVisible || (idig == 0);
-            dig.nextVisible = nextVisible || (idig == 0);
+    void updateForBlank(uint64_t nowMs) {
+        // 表示盤の数字と位置の更新
+        int nextValue = fxp12::truncToInt(currValueFxp);
+        int yShift = 0;
+        if (blankState == BlankState::BLANK_EXITING) {
+            if (nowMs < tAnimationStartMs + ANIMATION_DURATION_MS) {
+                int32_t yShiftFxp = (nowMs - tAnimationStartMs) * fxp12::ONE / ANIMATION_DURATION_MS;
+                yShift = fxp12::roundToInt(yShiftFxp * yStride);
+            }
+            else {
+                yShift = yStride;
+                blankState = BlankState::NORMAL;
+            }
+        }
+        for (int idig = 0; idig < numPlaces; idig++) {
+            Place &place = places[idig];
+            place.currDig.number = nextValue % 10;
+            place.nextDig.number = nextValue % 10;
+            place.currDig.blank = true;
+            place.nextDig.blank = false;
+            place.yShift = yShift;
+            nextValue /= 10;
         }
     }
 
     void render(ssd1306::Screen &g, int x0, int y0) {
         g.setClipRect(x0, y0 - 1, width, height + 2);
-        const int yStride = (font.height + 2);
-        for (int idig = 0; idig < numDigits; idig++) {
-            Digit &dig = digits[idig];
-            if (dig.currNumber != 0 || dig.currVisible) {
-                g.drawChar(font, x0 + dig.x, y0 + dig.shift, '0' + dig.currNumber);
-            }
-            if (dig.shift != 0 && (dig.nextNumber != 0 || dig.nextVisible)) {
-                g.drawChar(font, x0 + dig.x, y0 + dig.shift - yStride, '0' + dig.nextNumber);
+        for (int idig = 0; idig < numPlaces; idig++) {
+            Place &place = places[idig];
+            renderDigit(g, x0 + place.x, y0 + place.yShift, place.currDig);
+            if (place.yShift != 0) {
+                renderDigit(g, x0 + place.x, y0 + place.yShift - yStride, place.nextDig);
             }
         }
         g.clearClipRect();
+    }
+
+    void renderDigit(ssd1306::Screen &g, int x, int y, Digit &dig) {
+        if (aliases) {
+            g.drawString(font, x, y, aliases[dig.number]);
+        }
+        else if (dig.blank) {
+            g.drawChar(font, x, y, '-');
+        }
+        else if (dig.number != 0 || dig.zeroVisible) {
+            g.drawChar(font, x, y, '0' + dig.number);
+        }
     }
 
 };

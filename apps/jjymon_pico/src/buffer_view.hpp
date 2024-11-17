@@ -100,19 +100,19 @@ private:
 public:
     BufferView() : indexNumber(fonts::font5, 0, 59) {}
 
-    void init(uint64_t t_ms) {
+    void init(uint64_t nowMs) {
         for (int irow = 0; irow < NUM_ROWS; irow++) {
-            rows[irow].clear(t_ms, irow);
+            rows[irow].clear(nowMs, irow);
         }
-        layoutRows(t_ms, true);
+        layoutRows(nowMs, true);
     }
 
-    void render(uint64_t t_ms, ssd1306::Screen &g, int x0, int y0, const receiver_status_t &sts) {
-        indexNumber.update(t_ms);
+    void render(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, const receiver_status_t &sts) {
+        indexNumber.update(nowMs);
 
         if (sts.dec.toggle != lastToggle) {
             lastToggle = sts.dec.toggle;
-            updateTable(t_ms, sts);
+            updateTable(nowMs, sts);
         }
         
         g.drawString(fonts::font5, x0, y0, "BUFF");
@@ -126,7 +126,7 @@ public:
         for (int irow = NUM_ROWS - 1; irow >= 0; irow--) {
             Row &row = rows[irow];
             int rowX, rowY;
-            row.getCurrentPos(t_ms, &rowX, &rowY);
+            row.getCurrentPos(nowMs, &rowX, &rowY);
             rowX += x0;
             rowY += y0;
             int cellX = rowX + (NUM_COLS - 1) * CELL_W;
@@ -176,51 +176,51 @@ public:
 #endif
     }
 
-    void updateTable(uint64_t t_ms, const receiver_status_t &sts) {
+    void updateTable(uint64_t nowMs, const receiver_status_t &sts) {
         bool feed = 
             (sts.dec.last_action == jjy::rx::Decoder::action_t::SYNC_MARKER) ||
             (sts.dec.last_action == jjy::rx::Decoder::action_t::TICK_CONTINUE && sts.dec.last_bit_index % 10 == 0);
         if (feed) {
             bool add_sep = sts.dec.synced && sts.dec.last_bit_index == 0;
-            feedLine(t_ms, add_sep);
+            feedLine(nowMs, add_sep);
         }
-        shiftIn(t_ms, sts.dec.last_bit_value);
-        indexNumber.setNumber(sts.dec.last_bit_index);
+        shiftIn(nowMs, sts.dec.last_bit_value);
+        indexNumber.setNumber(nowMs, sts.dec.last_bit_index);
     }
 
-    void shiftIn(uint64_t t_ms, jjy::jjybit_t in) {
+    void shiftIn(uint64_t nowMs, jjy::jjybit_t in) {
         Row &row = rows[NUM_ROWS - 1];
         for (int icol = NUM_COLS - 1; icol >= 1; icol--) {
             row.cells[icol] = row.cells[icol - 1];
         }
         cell_t &cell = row.cells[0];
-        cell.clear(t_ms);
+        cell.clear(nowMs);
         cell.value = in;
         cell.valid = true;
 
         int y;
-        row.getCurrentPos(t_ms, nullptr, &y);
-        row.moveTo(t_ms, CELL_W - 1, y, false);
-        row.moveTo(t_ms, 0, y, true);
+        row.getCurrentPos(nowMs, nullptr, &y);
+        row.moveTo(nowMs, CELL_W - 1, y, false);
+        row.moveTo(nowMs, 0, y, true);
     }
 
-    void feedLine(uint64_t t_ms, bool add_separator) {
+    void feedLine(uint64_t nowMs, bool addSeparator) {
         for (int irow = 0; irow < NUM_ROWS - 1; irow++) {
             rows[irow] = rows[irow + 1];
         }
-        rows[NUM_ROWS - 2].hasSeparator = add_separator;
-        rows[NUM_ROWS - 1].clear(t_ms, NUM_ROWS - 1);
-        layoutRows(t_ms, false);
+        rows[NUM_ROWS - 2].hasSeparator = addSeparator;
+        rows[NUM_ROWS - 1].clear(nowMs, NUM_ROWS - 1);
+        layoutRows(nowMs, false);
     }
 
-    void layoutRows(uint64_t t_ms, bool reset) {
+    void layoutRows(uint64_t nowMs, bool reset) {
         int y = HEIGHT - CELL_H + 1;
         for (int irow = NUM_ROWS - 1; irow >= 0; irow--) {
             Row &row = rows[irow];
             if (irow < NUM_ROWS - 1 && row.hasSeparator) {
                 y -= 2;
             }
-            row.moveTo(t_ms, 0, y, !reset && irow != NUM_ROWS - 1);
+            row.moveTo(nowMs, 0, y, !reset && irow != NUM_ROWS - 1);
             y -= CELL_H;
         }
     }

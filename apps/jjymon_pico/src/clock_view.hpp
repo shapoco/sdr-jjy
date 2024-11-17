@@ -22,9 +22,6 @@ using pen_t = shapoco::ssd1306::pen_t;
 class ClockView {
 public:
     static constexpr int HEIGHT = 18;
-    static constexpr char* DAY_OF_WEEK_STR[] = {
-        "SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"
-    };
 
     bool decStsToggle = false;
     bool clockInitialized = false;
@@ -32,71 +29,77 @@ public:
     jjy::JjyClock clock;
 
     const TinyFont &font;
-    RotaryCounter year_h;
-    RotaryCounter year_l;
+    RotaryCounter yearH;
+    RotaryCounter yearL;
     RotaryCounter month;
     RotaryCounter day;
     RotaryCounter hour;
     RotaryCounter minute;
     RotaryCounter second;
 
+    RotaryCounter dayOfWeek;
+
     ClockView() :
         font(fonts::font12),
-        year_h(font, 0, 99),
-        year_l(font, 0, 99),
+        yearH(font, 0, 99),
+        yearL(font, 0, 99),
         month(font, 1, 12),
         day(font, 1, 31),
         hour(font, 0, 23),
         minute(font, 0, 59),
-        second(font, 0, 59)
+        second(font, 0, 59),
+        dayOfWeek(fonts::font5, 0, 6)
     { 
-        year_h.zeroPadding = true;
-        year_l.zeroPadding = true;
+        dayOfWeek.setAliases(DAY_OF_WEEK_STRING);
+
+        yearH.zeroPadding = true;
+        yearL.zeroPadding = true;
         month.zeroPadding = true;
         day.zeroPadding = true;
         hour.zeroPadding = true;
         minute.zeroPadding = true;
         second.zeroPadding = true;
 
-        year_h.forwardOnly = true;
-        year_l.forwardOnly = true;
+        yearH.forwardOnly = true;
+        yearL.forwardOnly = true;
         month.forwardOnly = true;
         day.forwardOnly = true;
         hour.forwardOnly = true;
         minute.forwardOnly = true;
         second.forwardOnly = false;
+        dayOfWeek.forwardOnly = true;
 
         int32_t followRatio = fxp12::ONE / 4;
-        year_h.followRatio = followRatio;
-        year_l.followRatio = followRatio;
+        yearH.followRatio = followRatio;
+        yearL.followRatio = followRatio;
         month.followRatio = followRatio;
         day.followRatio = followRatio;
         hour.followRatio = followRatio;
         minute.followRatio = followRatio;
         second.followRatio = followRatio;
+        dayOfWeek.followRatio = followRatio;
 
         int32_t followStepMax = fxp12::ONE / 8;
-        year_h.followStepMax = followStepMax;
-        year_l.followStepMax = followStepMax;
+        yearH.followStepMax = followStepMax;
+        yearL.followStepMax = followStepMax;
         month.followStepMax = followStepMax;
         day.followStepMax = followStepMax;
         hour.followStepMax = followStepMax;
         minute.followStepMax = followStepMax;
         second.followStepMax = followStepMax;
-    }
+        dayOfWeek.followStepMax = followStepMax;
 
-    void setDateTime(uint64_t t_ms, jjy::JjyDateTime dt) {
+        yearH.setBlank();
+        yearL.setBlank();
+        month.setBlank();
+        day.setBlank();
+        hour.setBlank();
+        minute.setBlank();
+        second.setBlank();
+        dayOfWeek.setBlank();
     }
 
     void update(uint64_t nowMs, const jjymon::receiver_status_t &sts) {
-        year_h.update(nowMs);
-        year_l.update(nowMs);
-        month.update(nowMs);
-        day.update(nowMs);
-        hour.update(nowMs);
-        minute.update(nowMs);
-        second.update(nowMs);
-
         if (sts.dec.toggle != decStsToggle) {
             decStsToggle = sts.dec.toggle;
             jjy::ParseResut parseResult = sts.dec.last_parse_result;
@@ -108,21 +111,31 @@ public:
 
         if (clockInitialized) {
             dateTime = clock.get(nowMs);
-            year_h.setNumber(dateTime.year / 100);
-            year_l.setNumber(dateTime.year % 100);
-            month.setNumber(dateTime.month);
-            day.setNumber(dateTime.day);
-            hour.setNumber(dateTime.hour);
-            minute.setNumber(dateTime.minute);
-            second.setNumber(dateTime.second);
+            yearH.setNumber(nowMs, dateTime.year / 100);
+            yearL.setNumber(nowMs, dateTime.year % 100);
+            month.setNumber(nowMs, dateTime.month);
+            day.setNumber(nowMs, dateTime.day);
+            hour.setNumber(nowMs, dateTime.hour);
+            minute.setNumber(nowMs, dateTime.minute);
+            second.setNumber(nowMs, dateTime.second);
+            dayOfWeek.setNumber(nowMs, (int)dateTime.dayOfWeek);
         }
+        
+        yearH.update(nowMs);
+        yearL.update(nowMs);
+        month.update(nowMs);
+        day.update(nowMs);
+        hour.update(nowMs);
+        minute.update(nowMs);
+        second.update(nowMs);
+        dayOfWeek.update(nowMs);
     }
 
     void render(ssd1306::Screen &g, int x0, int y0) {
         {
             int x = x0, y = y0;
             if (clockInitialized) {
-                g.drawString(fonts::font5, x, y, DAY_OF_WEEK_STR[(int)dateTime.day_of_week]);
+                dayOfWeek.render(g, x, y);
             }
             else {
                 g.drawString(fonts::font5, x, y, "---");
@@ -131,23 +144,18 @@ public:
 
         {
             int x = x0, y = y0 + HEIGHT - fonts::font12.height;
-            if (clockInitialized) {
-                x += renderCounter(g, year_h, x, y);
-                x += renderCounter(g, year_l, x, y);
-                x += g.drawChar(font, x, y, '/') + font.spacing;
-                x += renderCounter(g, month, x, y);
-                x += g.drawChar(font, x, y, '/') + font.spacing;
-                x += renderCounter(g, day, x, y);
-                x += g.drawChar(font, x, y, ' ') + font.spacing;
-                x += renderCounter(g, hour, x, y);
-                x += g.drawChar(font, x, y, ':') + font.spacing;
-                x += renderCounter(g, minute, x, y);
-                x += g.drawChar(font, x, y, ':') + font.spacing;
-                x += renderCounter(g, second, x, y);
-            }
-            else {
-                g.drawString(fonts::font12, x, y, "----/--/-- --:--:--");
-            }
+            x += renderCounter(g, yearH, x, y);
+            x += renderCounter(g, yearL, x, y);
+            x += g.drawChar(font, x, y, '/') + font.spacing;
+            x += renderCounter(g, month, x, y);
+            x += g.drawChar(font, x, y, '/') + font.spacing;
+            x += renderCounter(g, day, x, y);
+            x += g.drawChar(font, x, y, ' ') + font.spacing;
+            x += renderCounter(g, hour, x, y);
+            x += g.drawChar(font, x, y, ':') + font.spacing;
+            x += renderCounter(g, minute, x, y);
+            x += g.drawChar(font, x, y, ':') + font.spacing;
+            x += renderCounter(g, second, x, y);
         }
     }
 

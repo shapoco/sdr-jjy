@@ -97,7 +97,7 @@ struct JjyDateTime {
     uint8_t minute;
     uint8_t second;
     uint16_t milliSecond;
-    JjyDayOfWeek day_of_week;
+    JjyDayOfWeek dayOfWeek;
     bool leap_second_at_end_of_month;
     JjyLeapSecondType leap_second_type;
 
@@ -150,7 +150,7 @@ struct JjyDateTime {
         if (!checkEvenParity(bits, 1, 8, 37)) rslt.flags |= ParseResut::BAD_MINUTE_PARITY;
 
         err = false;
-        day_of_week = (JjyDayOfWeek)readInt(bits, 50, 3, 0, 6, &err);
+        dayOfWeek = (JjyDayOfWeek)readInt(bits, 50, 3, 0, 6, &err);
         if (err) rslt.flags |= ParseResut::BAD_DAY_OF_WEEK;
         
         err = false;

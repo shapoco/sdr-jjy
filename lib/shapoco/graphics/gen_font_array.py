@@ -148,7 +148,7 @@ with open(f'{args.outdir}/{args.name}.cpp', 'w') as f:
                 if byte != 0:
                     ci.blank = False
         
-        comment = "'%s' (0x%02x) : x=%d, y=%d, w=%d" % (chr(ci.code), ci.code, ci.x, ci.y, ci.w)
+        comment = "'%s' (0x%02x) : index=%d, w=%d" % (chr(ci.code), ci.code, index, ci.w)
         if ci.blank:
             f.write(f'    // (BLANK) {comment}\n')
         elif ci.w == 0:

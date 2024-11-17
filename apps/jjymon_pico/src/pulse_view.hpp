@@ -118,7 +118,7 @@ public:
 
         // うなり検出状態
         if (beatDetected) {
-            g.draw_bitmap(x0 + WIDTH - bmp_icon_beat[0], y0, bmp_icon_beat);
+            g.drawBitmap(x0 + WIDTH - bmp_icon_beat[0], y0, bmp_icon_beat);
         }
     }
 

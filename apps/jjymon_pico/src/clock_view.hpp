@@ -125,12 +125,13 @@ public:
             progBar.setVisible(nowMs, false);
         }
         else if (!sts.sync.phaseLocked || !sts.dec.synced) {
-            progBar.setMessage("STBY...");
-            progBar.setValue(nowMs, 0);
-            progBar.setVisible(nowMs, true);
+            //progBar.setMessage("STANDBY...");
+            //progBar.setValue(nowMs, 0);
+            //progBar.setVisible(nowMs, true);
+            progBar.setVisible(nowMs, false);
         }
         else {
-            progBar.setMessage("RECV...");
+            progBar.setMessage("RECEIVING...");
             progBar.setValue(nowMs, sts.dec.lastBitIndex * fxp12::ONE / 60);
             progBar.setVisible(nowMs, true);
         }

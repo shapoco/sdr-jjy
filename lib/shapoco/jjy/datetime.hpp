@@ -219,6 +219,8 @@ struct JjyDateTime {
         carry += hour; hour = shapoco::cyclicNorm(carry, 24); carry /= 24;
 
         if (carry == 0) return;
+        dayOfWeek = (JjyDayOfWeek)shapoco::cyclicAdd((int)dayOfWeek, carry, 7);
+
         bool leapYear = isLeapYear(year);
         carry += getDayOfYear(month, day, leapYear) - DAY_OFFSET;
 

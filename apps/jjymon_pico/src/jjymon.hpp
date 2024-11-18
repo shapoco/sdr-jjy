@@ -45,10 +45,9 @@ static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;
 static constexpr uint32_t SPEAKER_PWM_PERIOD = 1 << SPEAKER_SAMPLE_BITS;
 
 typedef struct {
-    shapoco::jjy::rx::rf_status_t rf;
+    shapoco::jjy::rx::Rf::rf_status_t rf;
     shapoco::jjy::rx::sync_status_t sync;
     shapoco::jjy::rx::Decoder::status_t dec;
-    uint32_t scope[shapoco::jjy::rx::DifferentialDetector::SCOPE_SIZE];
 } receiver_status_t;
 
 extern shapoco::pico::atomic<receiver_status_t> glb_receiver_status;

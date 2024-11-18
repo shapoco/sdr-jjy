@@ -183,15 +183,15 @@ public:
         // 表示盤の数字と位置の更新
         currValue = shapoco::abs(currValue);
         nextValue = shapoco::abs(nextValue);
-        int32_t yShiftFxp = currValueFxp & (fxp12::ONE - 1);
+        int32_t yShift = fxp12::roundToInt((currValueFxp & fxp12::FRAC_MASK) * yStride);
         for (int idig = 0; idig < numPlaces; idig++) {
             Place &place = places[idig];
             place.currDig.number = currValue % 10;
             place.nextDig.number = nextValue % 10;
             place.currDig.blank = false;
             place.nextDig.blank = false;
-            place.yShift = fxp12::roundToInt(yShiftFxp * yStride);
-            if (place.currDig.number != 9) yShiftFxp = 0;
+            bool digChange = place.currDig.number != place.nextDig.number;
+            place.yShift = digChange ? yShift : 0;
             currValue /= 10;
             nextValue /= 10;
         }

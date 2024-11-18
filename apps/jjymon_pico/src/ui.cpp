@@ -146,10 +146,11 @@ static void render_quarity_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int
 }
 
 static void render_scope(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, const receiver_status_t &sts) {
-    int w = jjy::rx::DifferentialDetector::SCOPE_SIZE;
-    const uint32_t *scope = sts.scope;
+    int scopeSize = jjy::rx::Rf::SCOPE_SIZE;
+    int w = 32;
+    const uint32_t *scope = sts.rf.scope;
     for (int x = 0; x < w; x++) {
-        uint32_t val = scope[x];
+        uint32_t val = scope[x * scopeSize / w];
         for (int y = 0; y < 8; y++) {
             val = (val >> 2) | (val & 3);
             val = (val >> 1) | (val & 1);

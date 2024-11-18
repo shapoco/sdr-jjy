@@ -18,7 +18,7 @@ constexpr int32_t FRAC_MASK = ONE - 1;
 constexpr int32_t PHASE_PREC = 12;
 constexpr int32_t PHASE_PERIOD = 1 << PHASE_PREC;
 
-extern int32_t sin_table[PHASE_PERIOD];
+extern int32_t sinTable[PHASE_PERIOD];
 
 void initTables(void);
 int32_t normalize_angle(int32_t a);

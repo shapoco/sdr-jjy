@@ -120,16 +120,17 @@ public:
 
         g.drawString(fonts::font5, x0, y0, "BUFF");
         if (!sts.sync.phaseLocked) {
-            progBar.setMessage("STBY...");
-            progBar.setVisible(nowMs, true);
-            progBar.setWaving(false);
-            progBar.setValue(nowMs, 0);
+            //progBar.setMessage("STBY...");
+            //progBar.setValue(nowMs, 0);
+            //progBar.setWaving(false);
+            //progBar.setVisible(nowMs, true);
+            progBar.setVisible(nowMs, false);
         }
         else if (!sts.dec.synced) {
             progBar.setMessage("SYNC...");
-            progBar.setVisible(nowMs, true);
-            progBar.setWaving(true);
             progBar.setValue(nowMs, 0);
+            progBar.setWaving(true);
+            progBar.setVisible(nowMs, true);
         } 
         else {
             indexNumber.render(g, x0 + WIDTH - indexNumber.width, y0);

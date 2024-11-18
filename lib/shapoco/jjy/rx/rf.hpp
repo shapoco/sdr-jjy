@@ -1,8 +1,12 @@
 #pragma once
 
+#define USE_NEW_AGC // todo: 削除
+#define USE_QUAD_DET // todo: 削除
+
 #include <stdint.h>
 #include <string.h>
 
+#include "shapoco/fixed12.hpp"
 #include "shapoco/ring_scope.hpp"
 #include "shapoco/peak_hold.hpp"
 #include "shapoco/ring_history.hpp"
@@ -13,60 +17,15 @@
 #include "shapoco/jjy/anti_chattering.hpp"
 
 #include "shapoco/jjy/rx/common.hpp"
+#ifdef USE_QUAD_DET
+#include "shapoco/jjy/rx/quad_detector.hpp"
+#else
 #include "shapoco/jjy/rx/diff_detector.hpp"
+#endif
 
 #include "shapoco/lazy_timer.hpp"
 
-#define USE_NEW_AGC // todo: 削除
-
 namespace shapoco::jjy::rx {
-
-typedef struct {
-public:
-    uint32_t timestamp_ms;
-    uint32_t det_delay_ms;
-    uint32_t anti_chat_delay_ms;
-
-    int32_t agc_gain;
-
-    int32_t adc_amplitude_raw;
-    int32_t adc_amplitude_peak;
-    int32_t adc_min;
-    int32_t adc_max;
-    uint8_t hyst_dig_out;
-    uint8_t digital_out;
-    int32_t signal_quarity;
-
-    int32_t det_anl_out_raw;
-    int32_t det_anl_out_norm;
-
-    bool beat_detected;
-    int32_t det_anl_out_beat_det;
-
-    int32_t det_anl_out_base;
-    int32_t det_anl_out_peak;
-
-    void init(uint32_t t_now_ms, uint32_t det_delay_ms, uint32_t anti_chat_delay_ms) {
-        timestamp_ms = t_now_ms;
-        this->det_delay_ms = det_delay_ms;
-        this->anti_chat_delay_ms = anti_chat_delay_ms;
-        agc_gain = 0;
-        adc_amplitude_raw = 0;
-        adc_amplitude_peak = 0;
-        adc_min = 0;
-        adc_max = 0;
-        hyst_dig_out = 0;
-        det_anl_out_raw = 0;
-        digital_out = 0;
-        signal_quarity = 0;
-        det_anl_out_base = 0;
-        det_anl_out_peak = 0;
-        det_anl_out_norm = 0;
-
-        beat_detected = false;
-        det_anl_out_beat_det = 0;
-    }
-} rf_status_t;
 
 #ifndef USE_NEW_AGC
 class Agc_Deprecated {
@@ -349,6 +308,59 @@ public:
 
 class Rf {
 public:
+    static constexpr int SCOPE_SIZE = DETECTION_RESOLUTION * 3;
+
+    typedef struct {
+    public:
+        uint32_t timestamp_ms;
+        uint32_t det_delay_ms;
+        uint32_t anti_chat_delay_ms;
+
+        int32_t agc_gain;
+
+        int32_t adc_amplitude_raw;
+        int32_t adc_amplitude_peak;
+        int32_t adc_min;
+        int32_t adc_max;
+        uint8_t hyst_dig_out;
+        uint8_t digital_out;
+        int32_t signal_quarity;
+
+        int32_t det_anl_out_raw;
+        int32_t det_anl_out_norm;
+
+        bool beat_detected;
+        int32_t det_anl_out_beat_det;
+
+        int32_t det_anl_out_base;
+        int32_t det_anl_out_peak;
+
+        uint32_t scope[SCOPE_SIZE];
+
+        void init(uint32_t t_now_ms, uint32_t det_delay_ms, uint32_t anti_chat_delay_ms) {
+            timestamp_ms = t_now_ms;
+            this->det_delay_ms = det_delay_ms;
+            this->anti_chat_delay_ms = anti_chat_delay_ms;
+            agc_gain = 0;
+            adc_amplitude_raw = 0;
+            adc_amplitude_peak = 0;
+            adc_min = 0;
+            adc_max = 0;
+            hyst_dig_out = 0;
+            det_anl_out_raw = 0;
+            digital_out = 0;
+            signal_quarity = 0;
+            det_anl_out_base = 0;
+            det_anl_out_peak = 0;
+            det_anl_out_norm = 0;
+
+            beat_detected = false;
+            det_anl_out_beat_det = 0;
+
+            memset(scope, 0, sizeof(scope));
+        }
+    } rf_status_t;
+
     const int det_delay_ms;
     const int anti_chat_delay_ms;
 #ifdef USE_NEW_AGC
@@ -357,47 +369,59 @@ public:
 #else
     Agc_Deprecated agc;
 #endif
+#ifdef USE_QUAD_DET
+    QuadDetector det;
+#else
     DifferentialDetector det;
+#endif
     Binarizer bin;
 
 private:
     rf_status_t status;
     int32_t agc_out[DETECTION_BLOCK_SIZE];
     int agc_out_size = 0;
+    int scopePtr = 0;
 
 public:
     Rf() :
         det_delay_ms(1000 * DETECTION_BLOCK_SIZE / DETECTION_INPUT_SPS), 
         anti_chat_delay_ms(det_delay_ms * (AntiChattering::ANTI_CHAT_CYCLES - 1)) {}
     
-    void init(freq_t freq, const uint32_t t_now_ms) {
+    void init(freq_t freq, uint64_t nowMs) {
 #ifdef USE_NEW_AGC
         pre_bias.reset();
         pre_agc.reset();
 #else
         agc.init(t_now_ms);
 #endif
-        det.init(freq, t_now_ms);
-        bin.init(t_now_ms);
-        status.init(t_now_ms, det_delay_ms, anti_chat_delay_ms);
+#ifdef USE_QUAD_DET
+        det.init(nowMs);
+#else
+        det.init(freq, nowMs);
+#endif
+        det.init(nowMs);
+        bin.init(nowMs);
+        status.init(nowMs, det_delay_ms, anti_chat_delay_ms);        
     }
 
-    uint8_t process(const uint32_t t_now_ms, const uint16_t *in) {
+    uint8_t process(uint64_t nowMs, const uint16_t *in) {
+        memset(status.scope, 0, sizeof(status.scope));
+        
 #ifdef USE_NEW_AGC
-        preBiasAgc(t_now_ms, in);
+        preBiasAgc(nowMs, in);
 #else
         // AGC
         agc.process(t_now_ms, in, agc_out, DETECTION_BLOCK_SIZE);
 #endif
 
         // 検波器
-        int32_t det_anl_out_raw = det.process(t_now_ms, agc_out);
+        int32_t det_anl_out_raw = det.process(nowMs, agc_out);
 
         // フィルター
-        uint8_t out = bin.process(t_now_ms, det_anl_out_raw);
+        uint8_t out = bin.process(nowMs, det_anl_out_raw);
 
         // ステータス値更新
-        status.timestamp_ms = t_now_ms;
+        status.timestamp_ms = nowMs;
 #ifndef USE_NEW_AGC
         status.adc_amplitude_raw = agc.adc_amplitude_raw;
         status.adc_amplitude_peak = agc.adc_amplitude_peak;
@@ -417,7 +441,7 @@ public:
     }
 
 #ifdef USE_NEW_AGC
-    void preBiasAgc(uint64_t t_ms, const uint16_t *in) {
+    void preBiasAgc(uint64_t nowMs, const uint16_t *in) {
         constexpr int32_t HALF_PI = 3.1415926535f * ONE / 2;
         constexpr int BIAS_PREC = 4;
 
@@ -435,6 +459,13 @@ public:
             int32_t gained = biased * gain / ONE;
 
             agc_out[i] = gained;
+
+            // オシロスコープ用波形データ
+            scopePtr = SHPC_CYCLIC_INCR(scopePtr, SCOPE_SIZE);
+            if (i < SCOPE_SIZE * 3) {
+                int scope_val = FXP_CLIP(0, 31, JJY_ROUND_DIV(((gained / 2) + ONE) * 31, ONE * 2));
+                status.scope[scopePtr] |= (1 << scope_val);
+            }
         }
         ave = JJY_ROUND_DIV(ave * (1 << BIAS_PREC), DETECTION_BLOCK_SIZE);
         amp = JJY_ROUND_DIV(amp, DETECTION_BLOCK_SIZE);

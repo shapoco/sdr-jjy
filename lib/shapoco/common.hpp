@@ -21,7 +21,7 @@
 namespace shapoco {
 
 template<typename T>
-SHPC_STATIC_INLINE int abs(T x) { return x >= 0 ? x : -x; };
+SHPC_STATIC_INLINE T abs(T x) { return x >= 0 ? x : -x; };
 
 template<typename T>
 SHPC_STATIC_INLINE int sign(T x) { return x < 0 ? -1 : (x == 0 ? 0 : 1); };

@@ -4,25 +4,25 @@
 
 namespace shapoco::fxp12 {
 
-static bool table_inited = false;
-int32_t sin_table[PHASE_PERIOD];
+static bool tableInited = false;
+int32_t sinTable[PHASE_PERIOD];
 
 void initTables(void) {
-    if (table_inited) return;
+    if (tableInited) return;
     for (int a = 0; a < PHASE_PERIOD; a++) {
-        sin_table[a] = ::round(::sin(a * 2 * M_PI / PHASE_PERIOD) * ONE);
+        sinTable[a] = ::round(::sin(a * 2 * M_PI / PHASE_PERIOD) * ONE);
     }
-    table_inited = true;
+    tableInited = true;
 }
 
 int32_t fastSin(int32_t a) {
     initTables();
-    return sin_table[phaseNorm(a)];
+    return sinTable[phaseNorm(a)];
 }
 
 int32_t fastCos(int32_t a) {
     initTables();
-    return sin_table[phaseNorm(a + PHASE_PERIOD / 4)];
+    return sinTable[phaseNorm(a + PHASE_PERIOD / 4)];
 }
 
 int32_t log2(int32_t x) {

@@ -54,6 +54,10 @@ static void render_scope(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, con
 static void render_meter(uint64_t nowMs, ssd1306::Screen &g, int x0, int y0, int32_t val);
 //static void render_date_time(uint64_t nowMs, ssd1306::Screen &g, const receiver_status_t &sts);
 
+#ifdef BOARD_PICO_W
+static void wifi_init(void);
+#endif
+
 void ui_init(void) {
     uint64_t nowMs = to_us_since_boot(get_absolute_time()) / 1000;
     spiLcd.init();

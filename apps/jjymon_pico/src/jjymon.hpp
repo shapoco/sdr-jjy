@@ -36,9 +36,12 @@ static constexpr int LCD_I2C_ADDR = 0x3c;
 static constexpr uint32_t LCD_I2C_FREQ = 400e3;
 
 static constexpr int PIN_ADC_IN = 26;
-static constexpr int PIN_LED_OUT = 25;
 static constexpr int PIN_SPEAKER_OUT = 28;
 static constexpr int PIN_LAMP_OUT = 10;
+
+#ifndef BOARD_PICO_W
+static constexpr int PIN_LED_OUT = 25;
+#endif
 
 static constexpr uint32_t SPEAKER_FREQ = 440;
 static constexpr uint32_t SPEAKER_SAMPLE_BITS = 16;

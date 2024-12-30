@@ -89,10 +89,9 @@ SHPC_STATIC_INLINE bool trySeparateDayOfYear(int dayOfYear, bool leapYear, uint8
 }
 
 struct JjyDateTime {
-
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
+    uint16_t year = 1970;
+    uint8_t month = MONTH_OFFSET;
+    uint8_t day = DAY_OFFSET;
     uint8_t hour;
     uint8_t minute;
     uint8_t second;
@@ -241,6 +240,31 @@ struct JjyDateTime {
         }
 
         trySeparateDayOfYear(DAY_OFFSET + carry, leapYear, &month, &day);
+    }
+
+    uint64_t toNtpTime() {
+        // todo: toNtpTime() の最適化
+        int y = 1900;
+        int d = 0;
+        while (y < year) {
+            d += isLeapYear(y) ? 366 : 365;
+            y += 1;
+        }
+        bool leapYear = isLeapYear(y);
+        d += getDayOfYear(month, day, leapYear) - DAY_OFFSET;
+
+        uint32_t s = d * (24 * 3600);
+        s += 3600 * hour;
+        s += 60 * minute;
+        s += second;
+
+        s -= 9 * 3600;
+
+        uint64_t t = s;
+        t <<= 32;
+        t += (1ull << 32) * milliSecond / 1000;
+
+        return t;
     }
 };
 

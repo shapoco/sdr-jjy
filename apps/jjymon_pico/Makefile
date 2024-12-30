@@ -7,6 +7,8 @@ BUILD_DIR = build
 BIN_DIR = bin/$(BOARD)
 
 BOARD := pico2
+WIFI_SSID := ""
+WIFI_PASS := ""
 
 BIN_NAME = jjymon.uf2
 ELF_NAME = jjymon.elf

@@ -15,12 +15,21 @@
 #include "jjymon.hpp"
 #include "sdr_loop.hpp"
 
+#ifdef BOARD_PICO_W
+#include "ntp_server.hpp"
+#endif
+
 namespace shapoco::jjymon {
 
 ::shapoco::pico::DmaAdc<PIN_ADC_IN, ADC_SPS, DMA_SIZE> dma_adc;
 ::shapoco::jjy::rx::Receiver receiver;
 
 static receiver_status_t sts;
+static bool lastLedOut = false;
+
+#ifdef BOARD_PICO_W
+static NtpServer ntpServer;
+#endif
 
 void sdr_init(void) {
     set_sys_clock_khz(SYS_CLK_FREQ / KHZ, true);
@@ -34,9 +43,16 @@ void sdr_init(void) {
     printf("receiver.rf.anti_chat_delay_ms = %d\n", receiver.rf.anti_chat_delay_ms);
 #endif
 
+#ifdef BOARD_PICO_W
+    ntpServer.init();
+#endif
+
     // Setup LED pin
+#ifdef BOARD_PICO_W
+#else
     gpio_init(PIN_LED_OUT);
     gpio_set_dir(PIN_LED_OUT, GPIO_OUT);
+#endif
 
     // Setup Lamp pin
     gpio_init(PIN_LAMP_OUT);
@@ -92,7 +108,15 @@ void sdr_loop(void) {
         glb_receiver_status.store(sts);
 
         // Output
-        gpio_put(PIN_LED_OUT, sts.rf.hyst_dig_out);
+        bool currLedOut = !!sts.rf.hyst_dig_out;
+        if (currLedOut != lastLedOut) {
+#ifdef BOARD_PICO_W
+            cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, currLedOut);
+#else
+            gpio_put(PIN_LED_OUT, sts.rf.hyst_dig_out);
+#endif
+            lastLedOut = currLedOut;
+        }
         gpio_put(PIN_LAMP_OUT, !sts.rf.digital_out);
         pwm_set_gpio_level(PIN_SPEAKER_OUT, sts.rf.digital_out ? SPEAKER_PWM_PERIOD / 2 : 0);
 
@@ -111,6 +135,10 @@ void sdr_loop(void) {
             t_calc_us = 0;
             t_dma_us = 0;
         }
+        
+#ifdef BOARD_PICO_W
+        ntpServer.service(sts.dec.lastRecvTimestampMs, sts.dec.lastRecvDateTimeEffective);
+#endif
     }
 }
 

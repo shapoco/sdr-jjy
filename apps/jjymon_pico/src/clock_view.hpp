@@ -132,7 +132,7 @@ public:
         }
         else {
             progBar.setMessage("RECEIVING...");
-            progBar.setValue(nowMs, sts.dec.lastBitIndex * fxp12::ONE / 60);
+            progBar.setValue(nowMs, sts.dec.lastBitIndex * fxp12::ONE / 59);
             progBar.setVisible(nowMs, true);
         }
         

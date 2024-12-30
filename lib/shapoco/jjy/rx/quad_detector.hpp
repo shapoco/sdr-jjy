@@ -63,7 +63,7 @@ public:
         for (int phase = 0; phase < HALF_WAVE_LEN_60KHZ; phase++) {
             out60kHz = SHPC_MAX(out60kHz, shapoco::abs(SHPC_ROUND_DIV(sum60kHz[phase], (int)DETECTION_BLOCK_SIZE)));
         }
-        //return /*out40kHz +*/ out60kHz;
+        //return out40kHz;
         return out60kHz;
     }
 };

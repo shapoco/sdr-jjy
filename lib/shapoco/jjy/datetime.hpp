@@ -60,8 +60,8 @@ struct ParseResut {
 
 bool isLeapYear(int year);
 
-SHPC_STATIC_INLINE int getNumDaysInYear(int year) {
-    return isLeapYear(year) ? 366 : 365;
+SHPC_STATIC_INLINE int getNumDaysInYear(bool leapYear) {
+    return leapYear ? 366 : 365;
 }
 
 bool tryGetNumDaysInMonth(int month, bool leapYear, int *out);

@@ -39,7 +39,7 @@ public:
     int measureStringWidth(const char *s) const {
         const char *c = s;
         int w = 0;
-        while (c != nullptr) {
+        while (*c != '\0') {
             const TinyFontGlyph *glyph = getGlyph(*c);
             if (glyph) w += glyph->width + spacing;
             c++;

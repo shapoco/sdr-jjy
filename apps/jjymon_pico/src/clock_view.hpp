@@ -26,6 +26,7 @@ public:
 
     bool decStsToggle = false;
     bool clockInitialized = false;
+    jjy::ParseResut lastParseResult;
     jjy::JjyDateTime dateTime;
     jjy::JjyClock clock;
 
@@ -105,8 +106,8 @@ public:
     void update(uint64_t nowMs, const jjymon::receiver_status_t &sts) {
         if (sts.dec.toggle != decStsToggle) {
             decStsToggle = sts.dec.toggle;
-            jjy::ParseResut parseResult = sts.dec.last_parse_result;
-            if (parseResult.success()) {
+            lastParseResult = sts.dec.last_parse_result;
+            if (lastParseResult.success()) {
                 clock.set(sts.dec.lastRecvTimestampMs, sts.dec.lastRecvDateTimeEffective);
                 clockInitialized = true;
             }
@@ -151,10 +152,16 @@ public:
         {
             int x = x0, y = y0;
             if (clockInitialized) {
-                dayOfWeek.render(g, x, y);
+                x += renderCounter(g, dayOfWeek, x, y);
             }
             else {
-                g.drawString(fonts::font5, x, y, "---");
+                x += g.drawString(fonts::font5, x, y, "---");
+            }
+
+            if (!lastParseResult.success()) {
+                char s[16];
+                sprintf(s, " ERR=0x%04x", (unsigned int)lastParseResult.flags);
+                g.drawString(fonts::font5, x, y, s);
             }
         }
 

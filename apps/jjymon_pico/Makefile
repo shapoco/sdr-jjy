@@ -128,8 +128,13 @@ launch-openocd:
 		-f tcl/target/rp2350.cfg \
 		-s tcl
 
-clean:
-	rm -rf build
+objclean:
+	rm -f \
+		$(BUILD_DIR)/*.uf2 \
+		$(BUILD_DIR)/*.elf
+
+clean: objclean
+	rm -rf $(BUILD_DIR)
 
 distclean: clean
-	rm -rf bin
+	rm -rf $(BIN_DIR)
